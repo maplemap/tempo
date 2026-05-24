@@ -1,0 +1,16 @@
+services:
+  app:
+    build:
+      context: .
+      target: builder
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/backend/node_modules
+      - /app/frontend/node_modules
+    command: npm run dev
+    environment:
+      NODE_ENV: development
+      VITE_UPSTREAM: http://localhost:5173

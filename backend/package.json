@@ -1,0 +1,21 @@
+{
+  "name": "tempo-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^9.3.1",
+    "@fastify/http-proxy": "^9.5.0",
+    "@fastify/static": "^7.0.4",
+    "better-sqlite3": "^11.3.0",
+    "dotenv": "^16.4.5",
+    "fastify": "^4.28.1",
+    "jsonwebtoken": "^9.0.2",
+    "node-cron": "^3.0.3",
+    "undici": "^6.19.8"
+  }
+}
