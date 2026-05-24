@@ -20,7 +20,7 @@ export function setAuthCookie(reply, token) {
   reply.setCookie(COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: env.isProduction,
+    secure: env.secureCookie,
     path: '/',
     maxAge: COOKIE_MAX_AGE
   });

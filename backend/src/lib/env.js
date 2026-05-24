@@ -24,6 +24,7 @@ export const env = {
   jwtSecret: required('JWT_SECRET'),
   dataDir: path.resolve(process.env.DATA_DIR || path.join(__dirname, '../../data')),
   isProduction: process.env.NODE_ENV === 'production',
+  secureCookie: process.env.SECURE_COOKIE === 'true',
   github: {
     token: process.env.GITHUB_TOKEN || null,
     baseBranch: process.env.GITHUB_BASE_BRANCH || 'main'
