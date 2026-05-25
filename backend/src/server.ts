@@ -37,7 +37,7 @@ await app.register(syncRoutes,    { prefix: '/api/sync' });
 await app.register(githubRoutes,  { prefix: '/api/github' });
 
 const publicDir = path.join(__dirname, '..', 'public');
-const viteUpstream = process.env.VITE_UPSTREAM || 'http://localhost:5173';
+const viteUpstream = process.env['VITE_UPSTREAM'] ?? 'http://localhost:5173';
 
 if (fs.existsSync(publicDir)) {
   await app.register(fastifyStatic, { root: publicDir, prefix: '/' });
@@ -70,8 +70,8 @@ try {
 if (env.github.token) {
   const expr = `*/${env.syncIntervalMinutes} * * * *`;
   cron.schedule(expr, () => {
-    runGitHubSync().catch((err) => app.log.error({ err: err.message }, '[sync] github failed'));
+    runGitHubSync().catch((err: Error) => app.log.error({ err: err.message }, '[sync] github failed'));
   });
   app.log.info(`[sync] github scheduled every ${env.syncIntervalMinutes}m`);
-  runGitHubSync().catch((err) => app.log.warn({ err: err.message }, '[sync] initial github run failed'));
+  runGitHubSync().catch((err: Error) => app.log.warn({ err: err.message }, '[sync] initial github run failed'));
 }
