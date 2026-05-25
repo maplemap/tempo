@@ -504,4 +504,56 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   .nav-running {
     display: none;
   }
+
+  .entry-row {
+    display: block;
+    border: 1px solid var(--hairline);
+    padding: 10px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .entry-row:hover {
+    border-bottom-color: var(--hairline);
+  }
+
+  .entry-row .time {
+    display: inline;
+    font-size: 13px;
+  }
+
+  .entry-row .dur {
+    float: right;
+    font-size: 13px;
+  }
+
+  .entry-row .proj {
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .entry-row .desc {
+    display: block;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    font-size: 13px;
+    margin-bottom: 6px;
+    color: var(--muted);
+  }
+
+  .entry-row .badges {
+    display: inline-flex;
+    margin-bottom: 6px;
+  }
+
+  .entry-row .entry-actions {
+    float: right;
+  }
+
+  .entry-row::after {
+    content: '';
+    display: block;
+    clear: both;
+  }
 }
