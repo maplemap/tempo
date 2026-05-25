@@ -1,4 +1,10 @@
-export default function ConfirmInline({ message, onConfirm, onCancel }) {
+interface ConfirmInlineProps {
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+export default function ConfirmInline({ message, onConfirm, onCancel }: ConfirmInlineProps) {
   return (
     <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
       <span className="muted" style={{ fontSize: 12 }}>{message}</span>

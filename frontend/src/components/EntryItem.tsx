@@ -1,34 +1,53 @@
 import { useState, useEffect, useRef } from 'react';
-import { api } from '../lib/api.js';
-import { fmtTimeHM, fmtDuration } from '../lib/time.js';
-import ConfirmInline from './ConfirmInline.jsx';
-import { renderDescription } from '../lib/renderDescription.jsx';
+import { api } from '../lib/api';
+import { fmtTimeHM, fmtDuration } from '../lib/time';
+import ConfirmInline from './ConfirmInline';
+import { renderDescription } from '../lib/renderDescription';
+import type { Entry, Project } from '../lib/api';
 
-function toLocalInput(iso) {
+interface EntryItemProps {
+  entry: Entry;
+  projects?: Project[];
+  onChange?: () => void;
+  onRestart?: () => void;
+  editingId: number | null;
+  setEditingId: (id: number | null) => void;
+}
+
+interface Draft {
+  description: string;
+  project_id: number | string;
+  started_at: string;
+  ended_at: string;
+}
+
+function toLocalInput(iso: string | null | undefined): string {
   if (!iso) return '';
   const d = new Date(iso);
-  const pad = (n) => String(n).padStart(2, '0');
+  const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function fromLocalInput(s) {
+function fromLocalInput(s: string): string | null {
   return s ? new Date(s).toISOString() : null;
 }
 
-export default function EntryItem({ entry, projects = [], onChange, onRestart, editingId, setEditingId }) {
+export default function EntryItem({
+  entry, projects = [], onChange, onRestart, editingId, setEditingId
+}: EntryItemProps) {
   const editing = editingId === entry.id;
-  const [draft, setDraft] = useState({
-    description: entry.description || '',
+  const [draft, setDraft] = useState<Draft>({
+    description: entry.description ?? '',
     project_id: entry.project_id ?? '',
     started_at: toLocalInput(entry.started_at),
     ended_at: toLocalInput(entry.ended_at)
   });
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const errorTimer = useRef(null);
+  const errorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function showError(msg) {
-    clearTimeout(errorTimer.current);
+  function showError(msg: string): void {
+    if (errorTimer.current) clearTimeout(errorTimer.current);
     setError(msg);
     errorTimer.current = setTimeout(() => setError(null), 3500);
   }
@@ -36,30 +55,21 @@ export default function EntryItem({ entry, projects = [], onChange, onRestart, e
   useEffect(() => {
     if (!editing) return;
     setDraft({
-      description: entry.description || '',
+      description: entry.description ?? '',
       project_id: entry.project_id ?? '',
       started_at: toLocalInput(entry.started_at),
       ended_at: toLocalInput(entry.ended_at)
     });
   }, [editing]);
 
-  async function save() {
+  async function save(): Promise<void> {
     const now = Date.now();
-    const startedAt = fromLocalInput(draft.started_at) || entry.started_at;
+    const startedAt = fromLocalInput(draft.started_at) ?? entry.started_at;
     const endedAt = draft.ended_at ? fromLocalInput(draft.ended_at) : entry.ended_at;
 
-    if (new Date(startedAt).getTime() > now) {
-      showError('! start time cannot be in the future');
-      return;
-    }
-    if (endedAt && new Date(endedAt).getTime() > now) {
-      showError('! end time cannot be in the future');
-      return;
-    }
-    if (endedAt && new Date(endedAt) <= new Date(startedAt)) {
-      showError('! end time must be after start time');
-      return;
-    }
+    if (new Date(startedAt).getTime() > now) { showError('! start time cannot be in the future'); return; }
+    if (endedAt && new Date(endedAt).getTime() > now) { showError('! end time cannot be in the future'); return; }
+    if (endedAt && new Date(endedAt) <= new Date(startedAt)) { showError('! end time must be after start time'); return; }
 
     try {
       await api.entries.update(entry.id, {
@@ -71,20 +81,17 @@ export default function EntryItem({ entry, projects = [], onChange, onRestart, e
       setEditingId(null);
       onChange?.();
     } catch (e) {
-      showError(`! ${e.message}`);
+      showError(`! ${(e as Error).message}`);
     }
   }
 
-  async function remove() {
+  async function remove(): Promise<void> {
     await api.entries.remove(entry.id);
     onChange?.();
   }
 
-  async function restart() {
-    await api.timer.start({
-      projectId: entry.project_id || null,
-      description: entry.description || ''
-    });
+  async function restart(): Promise<void> {
+    await api.timer.start({ projectId: entry.project_id, description: entry.description ?? '' });
     onRestart?.();
   }
 
@@ -154,41 +161,41 @@ export default function EntryItem({ entry, projects = [], onChange, onRestart, e
         <span className="time">
           {fmtTimeHM(entry.started_at)} — {entry.ended_at ? fmtTimeHM(entry.ended_at) : '...'}
         </span>
-        <span className="dur">{fmtDuration(entry.duration_seconds || 0)}</span>
-        <span className="proj">{entry.project_name || '—'}</span>
+        <span className="dur">{fmtDuration(entry.duration_seconds ?? 0)}</span>
+        <span className="proj">{entry.project_name ?? '—'}</span>
         <span className="desc">
           {renderDescription(entry.description, { links: entry.links })}
         </span>
         <span className="badges">
-          {(entry.badges || []).map((b) => (
+          {(entry.badges ?? []).map((b) => (
             <span key={b} className="badge">{b}</span>
           ))}
         </span>
         <span className="entry-actions">
-        <button
-          className="btn icon-btn"
-          onClick={(e) => { e.stopPropagation(); restart(); }}
-          title="Restart this task"
-        >
-          [ ▶ ]
-        </button>
-        {confirmDelete
-          ? (
-            <span onClick={(e) => e.stopPropagation()}>
-              <ConfirmInline message="delete?" onConfirm={remove} onCancel={() => setConfirmDelete(false)} />
-            </span>
-          )
-          : (
-            <button
-              className="btn icon-btn"
-              onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
-              title="Delete entry"
-            >
-              [ × ]
-            </button>
-          )
-        }
-      </span>
+          <button
+            className="btn icon-btn"
+            onClick={(e) => { e.stopPropagation(); restart(); }}
+            title="Restart this task"
+          >
+            [ ▶ ]
+          </button>
+          {confirmDelete
+            ? (
+              <span onClick={(e) => e.stopPropagation()}>
+                <ConfirmInline message="delete?" onConfirm={remove} onCancel={() => setConfirmDelete(false)} />
+              </span>
+            )
+            : (
+              <button
+                className="btn icon-btn"
+                onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
+                title="Delete entry"
+              >
+                [ × ]
+              </button>
+            )
+          }
+        </span>
       </div>
     </div>
   );

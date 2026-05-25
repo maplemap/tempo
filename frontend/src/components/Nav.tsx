@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { api } from '../lib/api.js';
+import { api } from '../lib/api';
+import type { TimerEntry } from '../lib/api';
 
 const items = [
   { to: '/',          label: 'Timer' },
@@ -10,7 +11,7 @@ const items = [
 ];
 
 export default function Nav() {
-  const [current, setCurrent] = useState(null);
+  const [current, setCurrent] = useState<TimerEntry | null>(null);
   const location = useLocation();
 
   useEffect(() => {
