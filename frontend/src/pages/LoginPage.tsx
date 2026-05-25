@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { api } from '../lib/api.js';
+import { api, ApiError } from '../lib/api';
 
-export default function LoginPage({ onLogin }) {
+interface LoginPageProps { onLogin: () => void; }
+
+export default function LoginPage({ onLogin }: LoginPageProps) {
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
-  async function submit(e) {
+  async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     setBusy(true);
     setErr('');
@@ -14,7 +16,7 @@ export default function LoginPage({ onLogin }) {
       await api.auth.login(password);
       onLogin?.();
     } catch (e) {
-      setErr(e.message || 'login failed');
+      setErr(e instanceof ApiError ? e.message : 'login failed');
     } finally {
       setBusy(false);
     }

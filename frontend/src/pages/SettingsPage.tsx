@@ -1,15 +1,29 @@
 import { useEffect, useState } from 'react';
-import { api } from '../lib/api.js';
-import ConfirmInline from '../components/ConfirmInline.jsx';
+import { api } from '../lib/api';
+import type { Project, SyncStateRow } from '../lib/api';
+import ConfirmInline from '../components/ConfirmInline';
 
-export default function SettingsPage({ onLogout }) {
-  const [projects, setProjects] = useState([]);
-  const [repos, setRepos] = useState([]);
+interface SettingsPageProps { onLogout: () => void; }
+
+interface SyncRunResult {
+  user: string;
+  bases: string[];
+  since: string;
+  counts: { pr_created: number; pr_reviewed: number; pr_merged: number };
+}
+
+type SyncResultState =
+  | { ok: true; result: SyncRunResult }
+  | { ok: false; error: string };
+
+export default function SettingsPage({ onLogout }: SettingsPageProps) {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [repos, setRepos] = useState<string[]>([]);
   const [name, setName] = useState('');
-  const [syncState, setSyncState] = useState([]);
+  const [syncState, setSyncState] = useState<SyncStateRow[]>([]);
   const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [syncResult, setSyncResult] = useState<SyncResultState | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   async function refresh() {
     const [p, s] = await Promise.all([api.projects.list(), api.sync.state()]);
@@ -26,7 +40,7 @@ export default function SettingsPage({ onLogout }) {
 
   useEffect(() => { refresh(); loadRepos(); }, []);
 
-  async function addProject(e) {
+  async function addProject(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     await api.projects.create(name.trim());
@@ -34,12 +48,12 @@ export default function SettingsPage({ onLogout }) {
     refresh();
   }
 
-  async function toggleArchive(p) {
+  async function toggleArchive(p: Project) {
     await api.projects.update(p.id, { archived: !p.archived });
     refresh();
   }
 
-  async function remove(p) {
+  async function remove(p: Project) {
     await api.projects.remove(p.id);
     setConfirmDeleteId(null);
     refresh();
@@ -54,10 +68,10 @@ export default function SettingsPage({ onLogout }) {
     setSyncing(true);
     setSyncResult(null);
     try {
-      const r = await api.sync.run();
-      setSyncResult({ ok: true, ...r });
+      const r = await api.sync.run() as unknown as { ok: boolean; result: SyncRunResult };
+      setSyncResult({ ok: true, result: r.result });
     } catch (e) {
-      setSyncResult({ ok: false, error: e.message });
+      setSyncResult({ ok: false, error: e instanceof Error ? e.message : String(e) });
     } finally {
       setSyncing(false);
       refresh();

@@ -1,20 +1,31 @@
 import { useEffect, useState } from 'react';
-import { api } from '../lib/api.js';
-import { rangeForPeriod, fmtDuration } from '../lib/time.js';
-import AsciiBar from '../components/AsciiBar.jsx';
+import { api } from '../lib/api';
+import { rangeForPeriod, fmtDuration } from '../lib/time';
+import AsciiBar from '../components/AsciiBar';
 
-const periods = [
+type Period = 'day' | 'week' | 'month';
+
+interface StatsData {
+  range: { from: string; to: string };
+  total: number;
+  byProject: Array<{ project_name: string; project_id: number | null; total: number }>;
+  byDay: Array<{ day: string; total: number }>;
+  counters: { prs_created: number; reviews_done: number; prs_merged: number };
+  discrepancies: Array<{ entryId: number; description: string | null; missingRefs: string[] }>;
+}
+
+const periods: Array<{ key: Period; label: string }> = [
   { key: 'day',   label: 'Day' },
   { key: 'week',  label: 'Week' },
   { key: 'month', label: 'Month' }
 ];
 
 export default function DashboardPage() {
-  const [period, setPeriod] = useState('week');
-  const [stats, setStats] = useState(null);
+  const [period, setPeriod] = useState<Period>('week');
+  const [stats, setStats] = useState<StatsData | null>(null);
 
   useEffect(() => {
-    api.stats.get(rangeForPeriod(period)).then(setStats);
+    api.stats.get(rangeForPeriod(period)).then((data) => setStats(data as StatsData));
   }, [period]);
 
   if (!stats) return null;
@@ -50,7 +61,7 @@ export default function DashboardPage() {
       <div className="section-title">By project</div>
       {stats.byProject.length === 0 && <div className="muted">no data</div>}
       {stats.byProject.map((row) => (
-        <div key={row.project_id || 'none'} className="dash-row">
+        <div key={row.project_id ?? 'none'} className="dash-row">
           <span className="name">{row.project_name}</span>
           <span>{fmtDuration(row.total)}</span>
           <AsciiBar ratio={row.total / max} />

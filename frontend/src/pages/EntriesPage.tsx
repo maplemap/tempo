@@ -1,20 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../lib/api.js';
-import { rangeForPeriod, fmtDayHeader, isoDateKey, fmtDuration } from '../lib/time.js';
-import EntryItem from '../components/EntryItem.jsx';
+import { api } from '../lib/api';
+import type { Entry, Project } from '../lib/api';
+import { rangeForPeriod, fmtDayHeader, isoDateKey, fmtDuration } from '../lib/time';
+import EntryItem from '../components/EntryItem';
 
-const periods = [
+type Period = 'day' | 'week' | 'month';
+
+const periods: Array<{ key: Period; label: string }> = [
   { key: 'day',   label: 'Day' },
   { key: 'week',  label: 'Week' },
   { key: 'month', label: 'Month' }
 ];
 
 export default function EntriesPage() {
-  const [period, setPeriod] = useState('week');
-  const [entries, setEntries] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [editingId, setEditingId] = useState(null);
+  const [period, setPeriod] = useState<Period>('week');
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const navigate = useNavigate();
 
   async function refresh() {
@@ -66,7 +69,7 @@ export default function EntriesPage() {
               />
             ))
           : Object.entries(
-              entries.reduce((acc, e) => {
+              entries.reduce<Record<string, Entry[]>>((acc, e) => {
                 const key = isoDateKey(e.started_at);
                 (acc[key] = acc[key] || []).push(e);
                 return acc;
