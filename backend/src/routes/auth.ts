@@ -1,9 +1,10 @@
+import type { FastifyInstance } from 'fastify';
 import { env } from '../lib/env.js';
 import { signToken, setAuthCookie, clearAuthCookie } from '../lib/auth.js';
 
-export default async function authRoutes(fastify) {
-  fastify.post('/login', async (req, reply) => {
-    const { password } = req.body || {};
+export default async function authRoutes(fastify: FastifyInstance): Promise<void> {
+  fastify.post<{ Body: { password?: string } }>('/login', async (req, reply) => {
+    const { password } = req.body;
     if (!password || password !== env.adminPassword) {
       reply.code(401).send({ error: 'invalid password' });
       return;
@@ -23,6 +24,6 @@ export default async function authRoutes(fastify) {
       reply.code(401).send({ error: 'unauthorized' });
       return;
     }
-    return { user: req.user.sub };
+    return { user: req.user['sub'] };
   });
 }
