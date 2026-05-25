@@ -563,9 +563,9 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     flex: 1 1 140px;
   }
 
-  /* Dashboard rows — shrink name column */
+  /* Dashboard rows — 2 columns on mobile, hide bar and percentage */
   .dash-row {
-    grid-template-columns: minmax(0, 1fr) 60px 60px 36px;
+    grid-template-columns: minmax(0, 1fr) 60px;
   }
 
   .dash-row .name {
@@ -573,6 +573,11 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .dash-row .bar,
+  .dash-row .muted {
+    display: none;
   }
 
   /* Counters — 2 columns, third spans full width */
