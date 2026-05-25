@@ -86,28 +86,49 @@ export default function SettingsPage({ onLogout }) {
 
       {projects.length === 0 && <div className="muted">no projects yet</div>}
       {projects.map((p) => (
-        <div key={p.id} className="dash-row" style={{ gridTemplateColumns: '1fr auto auto auto', marginBottom: 4 }}>
-          <span className={p.archived ? 'muted' : 'name'}>
-            {p.name} {!!p.archived && <span className="muted">(archived)</span>}
-          </span>
-          <select
-            className="input"
-            style={{ fontSize: 12, width: 220 }}
-            value={p.github_repo || ''}
-            onChange={(e) => {
-              api.projects.update(p.id, { github_repo: e.target.value || null }).then(refresh);
-            }}
-          >
-            <option value="">— no repo —</option>
-            {repos.map((r) => <option key={r} value={r}>{r}</option>)}
-            {p.github_repo && !repos.includes(p.github_repo) && (
-              <option value={p.github_repo}>{p.github_repo}</option>
+        <div key={p.id} style={{ marginBottom: 8 }}>
+          <div className="dash-row" style={{ gridTemplateColumns: '1fr auto auto' }}>
+            <span className={p.archived ? 'muted' : 'name'}>
+              {p.name} {!!p.archived && <span className="muted">(archived)</span>}
+            </span>
+            <button className="btn" onClick={() => toggleArchive(p)}>
+              [ {p.archived ? 'UNARCHIVE' : 'ARCHIVE'} ]
+            </button>
+            <button className="btn" onClick={() => remove(p)}>[ DELETE ]</button>
+          </div>
+          <div style={{ display: 'flex', gap: 12, marginTop: 6, alignItems: 'flex-end' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <label style={{ fontSize: 11, color: 'var(--muted)' }}>GitHub repo</label>
+              <select
+                className="input"
+                style={{ fontSize: 12, width: 220 }}
+                value={p.github_repo || ''}
+                onChange={(e) => {
+                  api.projects.update(p.id, { github_repo: e.target.value || null }).then(refresh);
+                }}
+              >
+                <option value="">— no repo —</option>
+                {repos.map((r) => <option key={r} value={r}>{r}</option>)}
+                {p.github_repo && !repos.includes(p.github_repo) && (
+                  <option value={p.github_repo}>{p.github_repo}</option>
+                )}
+              </select>
+            </div>
+            {p.github_repo && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <label style={{ fontSize: 11, color: 'var(--muted)' }}>Base branch</label>
+                <input
+                  className="input"
+                  style={{ fontSize: 12, width: 140 }}
+                  placeholder="main"
+                  value={p.github_base_branch || ''}
+                  onChange={(e) => {
+                    api.projects.update(p.id, { github_base_branch: e.target.value || null }).then(refresh);
+                  }}
+                />
+              </div>
             )}
-          </select>
-          <button className="btn" onClick={() => toggleArchive(p)}>
-            [ {p.archived ? 'UNARCHIVE' : 'ARCHIVE'} ]
-          </button>
-          <button className="btn" onClick={() => remove(p)}>[ DELETE ]</button>
+          </div>
         </div>
       ))}
 
@@ -137,7 +158,7 @@ export default function SettingsPage({ onLogout }) {
         <div style={{ marginTop: 12, fontSize: 13 }}>
           {syncResult.ok ? (
             <div>
-              ✓ synced as <b>{syncResult.result.user}</b> · base <b>{syncResult.result.base}</b> · since {syncResult.result.since}
+              ✓ synced as <b>{syncResult.result.user}</b> · bases <b>{syncResult.result.bases.join(', ')}</b> · since {syncResult.result.since}
               <div className="muted" style={{ marginTop: 4 }}>
                 created: {syncResult.result.counts.pr_created} ·
                 reviewed: {syncResult.result.counts.pr_reviewed} ·
@@ -151,8 +172,8 @@ export default function SettingsPage({ onLogout }) {
       )}
 
       <div className="muted" style={{ fontSize: 12, marginTop: 16 }}>
-        Configure via .env: GITHUB_TOKEN (PAT with `repo` scope), GITHUB_BASE_BRANCH (default `main`),
-        SYNC_INTERVAL_MINUTES, BACKFILL_DAYS.
+        Configure via .env: GITHUB_TOKEN (PAT with `repo` scope), SYNC_INTERVAL_MINUTES, BACKFILL_DAYS.
+        Base branch per project defaults to `main`.
       </div>
     </>
   );
