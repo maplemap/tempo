@@ -364,6 +364,49 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   text-transform: uppercase;
 }
 
+.running .running-started {
+  font-size: 12px;
+  opacity: 0.5;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  margin-bottom: 24px;
+}
+
+.running .running-started:hover {
+  opacity: 1;
+}
+
+.running .start-wrap {
+  height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.running .start-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.running .start-edit-input {
+  background: transparent;
+  color: var(--inv-fg);
+  border-color: var(--inv-fg);
+  width: auto;
+  font-size: 13px;
+  padding: 2px 6px;
+}
+
+.running .start-error {
+  font-size: 11px;
+  opacity: 0.7;
+  margin-top: 4px;
+}
+
 /* Dashboard */
 .dash-row {
   display: grid;

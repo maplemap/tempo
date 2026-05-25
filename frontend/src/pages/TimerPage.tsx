@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import type { Entry, Project, TimerEntry } from '../lib/api';
-import { fmtClock, fmtDate, fmtDuration, rangeForPeriod } from '../lib/time';
+import { fmtClock, fmtDate, fmtDuration, fmtTimeHM, rangeForPeriod } from '../lib/time';
 import EntryItem from '../components/EntryItem';
 import { renderDescription } from '../lib/renderDescription';
 
@@ -74,6 +74,9 @@ export default function TimerPage() {
     description: ''
   }));
   const [tick, setTick] = useState(0);
+  const [editingStart, setEditingStart] = useState(false);
+  const [startDraft, setStartDraft] = useState('');
+  const [startError, setStartError] = useState<string | null>(null);
   const startedAtRef = useRef<number | null>(null);
   const rafId = useRef<number>(0);
 
@@ -146,6 +149,42 @@ export default function TimerPage() {
     };
   }, []);
 
+  function toTimeInput(iso: string): string {
+    const d = new Date(iso);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
+
+  function applyTimeInput(hhmm: string, originalIso: string): string {
+    const d = new Date(originalIso);
+    const [h, m] = hhmm.split(':').map(Number);
+    d.setHours(h, m, 0, 0);
+    return d.toISOString();
+  }
+
+  function openStartEdit() {
+    if (!current) return;
+    setStartDraft(toTimeInput(current.started_at));
+    setStartError(null);
+    setEditingStart(true);
+  }
+
+  async function saveStartTime() {
+    if (!current) return;
+    const newStartedAt = applyTimeInput(startDraft, current.started_at);
+    if (new Date(newStartedAt).getTime() > Date.now()) {
+      setStartError('! start time cannot be in the future');
+      return;
+    }
+    try {
+      await api.entries.update(current.id, { started_at: newStartedAt });
+      startedAtRef.current = new Date(newStartedAt).getTime();
+      setCurrent({ ...current, started_at: newStartedAt });
+      setEditingStart(false);
+    } catch (e) {
+      setStartError(`! ${(e as Error).message}`);
+    }
+  }
+
   async function start() {
     const res = await api.timer.start({
       projectId: draft.projectId ? Number(draft.projectId) : null,
@@ -189,6 +228,35 @@ export default function TimerPage() {
           {renderDescription(current.description, { githubRepo: current.github_repo })}
         </div>
         <div className="running-proj">{current.project_name || 'no project'}</div>
+
+        <div className="start-wrap">
+          {editingStart ? (
+            <>
+              <div className="start-edit-row">
+                <input
+                  type="text"
+                  className="input start-edit-input"
+                  placeholder="HH:MM"
+                  value={startDraft}
+                  autoFocus
+                  onChange={(e) => { setStartDraft(e.target.value); setStartError(null); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); saveStartTime(); }
+                    if (e.key === 'Escape') setEditingStart(false);
+                  }}
+                />
+                <button className="btn" onClick={saveStartTime}>[ SAVE ]</button>
+                <button className="btn" onClick={() => setEditingStart(false)}>[ CANCEL ]</button>
+              </div>
+              {startError && <div className="start-error">{startError}</div>}
+            </>
+          ) : (
+            <div className="running-started" onClick={openStartEdit}>
+              started {fmtTimeHM(current.started_at)}
+            </div>
+          )}
+        </div>
+
         <button className="btn" onClick={stop}>[ STOP ]</button>
         <div className="hint">press space to stop</div>
       </div>
@@ -263,6 +331,7 @@ export default function TimerPage() {
               onRestart={refresh}
               editingId={editingId}
               setEditingId={setEditingId}
+              timeOnly
             />
           ))}
         </div>
