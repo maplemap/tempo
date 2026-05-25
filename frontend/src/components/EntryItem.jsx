@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api.js';
 import { fmtTimeHM, fmtDuration } from '../lib/time.js';
 import ConfirmInline from './ConfirmInline.jsx';
+import { renderDescription } from '../lib/renderDescription.jsx';
 
 function toLocalInput(iso) {
   if (!iso) return '';
@@ -144,25 +145,26 @@ export default function EntryItem({ entry, projects = [], onChange, onRestart, e
   }
 
   return (
-    <div
-      className="entry-row entry-clickable"
-      onClick={() => setEditingId(entry.id)}
-      title="Click to edit"
-    >
-      <span className="time">
-        {fmtTimeHM(entry.started_at)} — {entry.ended_at ? fmtTimeHM(entry.ended_at) : '...'}
-      </span>
-      <span className="dur">{fmtDuration(entry.duration_seconds || 0)}</span>
-      <span className="proj">{entry.project_name || '—'}</span>
-      <span className="desc">
-        {entry.description || <span className="muted">(no description)</span>}
-      </span>
-      <span className="badges">
-        {(entry.badges || []).map((b) => (
-          <span key={b} className="badge">{b}</span>
-        ))}
-      </span>
-      <span className="entry-actions">
+    <div>
+      <div
+        className="entry-row entry-clickable"
+        onClick={() => setEditingId(entry.id)}
+        title="Click to edit"
+      >
+        <span className="time">
+          {fmtTimeHM(entry.started_at)} — {entry.ended_at ? fmtTimeHM(entry.ended_at) : '...'}
+        </span>
+        <span className="dur">{fmtDuration(entry.duration_seconds || 0)}</span>
+        <span className="proj">{entry.project_name || '—'}</span>
+        <span className="desc">
+          {renderDescription(entry.description, { links: entry.links })}
+        </span>
+        <span className="badges">
+          {(entry.badges || []).map((b) => (
+            <span key={b} className="badge">{b}</span>
+          ))}
+        </span>
+        <span className="entry-actions">
         <button
           className="btn icon-btn"
           onClick={(e) => { e.stopPropagation(); restart(); }}
@@ -187,6 +189,7 @@ export default function EntryItem({ entry, projects = [], onChange, onRestart, e
           )
         }
       </span>
+      </div>
     </div>
   );
 }

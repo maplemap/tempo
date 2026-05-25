@@ -1,6 +1,7 @@
 import { db } from '../db/index.js';
 import { requireAuth } from '../lib/auth.js';
 import { diffSeconds, parseRange } from '../lib/time.js';
+import { autoLinkPRs } from '../lib/autolink.js';
 
 const listEntries = db.prepare(`
   SELECT e.*, p.name AS project_name, p.github_repo
@@ -136,6 +137,9 @@ export default async function entryRoutes(fastify) {
       ended_at: endedAt ?? null,
       duration_seconds: duration
     });
+
+    const saved = getEntry.get(current.id);
+    await autoLinkPRs(current.id, saved.description, saved.github_repo).catch(() => {});
     return { entry: hydrate(getEntry.get(current.id)) };
   });
 

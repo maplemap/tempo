@@ -1,9 +1,10 @@
 import { db } from '../db/index.js';
 import { requireAuth } from '../lib/auth.js';
 import { nowIso, diffSeconds } from '../lib/time.js';
+import { autoLinkPRs } from '../lib/autolink.js';
 
 const getOpen = db.prepare(`
-  SELECT e.*, p.name AS project_name
+  SELECT e.*, p.name AS project_name, p.github_repo
   FROM time_entries e
   LEFT JOIN projects p ON p.id = e.project_id
   WHERE e.ended_at IS NULL
@@ -63,6 +64,7 @@ export default async function timerRoutes(fastify) {
       duration: diffSeconds(open.started_at, endedAt),
       id: open.id
     });
+    await autoLinkPRs(open.id, open.description, open.github_repo).catch(() => {});
     return { ok: true, entryId: open.id };
   });
 }

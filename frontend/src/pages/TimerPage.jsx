@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api.js';
 import { fmtClock, fmtDate, fmtDuration, rangeForPeriod } from '../lib/time.js';
 import EntryItem from '../components/EntryItem.jsx';
+import { renderDescription } from '../lib/renderDescription.jsx';
 
 const LAST_PROJECT_KEY = 'tempo:lastProjectId';
 
@@ -84,7 +85,7 @@ export default function TimerPage() {
       <div className="running">
         <div className="timer-display">{fmtClock(elapsedSec)}</div>
         <div className="running-desc">
-          {current.description || <span style={{ opacity: 0.5 }}>(no description)</span>}
+          {renderDescription(current.description, { githubRepo: current.github_repo })}
         </div>
         <div className="running-proj">{current.project_name || 'no project'}</div>
         <button className="btn" onClick={stop}>[ STOP ]</button>
@@ -132,6 +133,7 @@ export default function TimerPage() {
             placeholder="e.g. review PR #1301"
             value={draft.description}
             onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+            onKeyDown={(e) => { if (e.key === 'Enter') start(); }}
           />
         </div>
 
