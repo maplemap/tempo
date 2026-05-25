@@ -483,6 +483,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 
   .nav {
     padding: 0;
+    border-top: none;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0;
@@ -511,10 +512,6 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     padding: 10px;
     margin-bottom: 6px;
     border-bottom: 1px solid var(--hairline);
-  }
-
-  .entry-row:hover {
-    border-bottom-color: var(--hairline);
   }
 
   .entry-row .time {
@@ -597,6 +594,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   .timer-form .label {
     margin-top: 12px;
     margin-bottom: 2px;
+  }
+
+  .timer-form .label:first-child {
+    margin-top: 0;
   }
 
   /* Timer display — slightly smaller */
