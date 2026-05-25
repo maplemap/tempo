@@ -1,15 +1,15 @@
-export function pad(n, w = 2) {
+export function pad(n: number, w = 2): string {
   return String(n).padStart(w, '0');
 }
 
-export function fmtClock(totalSeconds) {
+export function fmtClock(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
   const s = totalSeconds % 60;
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
-export function fmtDuration(totalSeconds) {
+export function fmtDuration(totalSeconds: number): string {
   if (!totalSeconds) return '0m';
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
@@ -18,30 +18,30 @@ export function fmtDuration(totalSeconds) {
   return `${h}h ${m}m`;
 }
 
-export function fmtTimeHM(iso) {
+export function fmtTimeHM(iso: string | null | undefined): string {
   if (!iso) return '--:--';
   const d = new Date(iso);
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function fmtDate(d = new Date()) {
+export function fmtDate(d = new Date()): string {
   const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const days   = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
   return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} · ${days[d.getDay()]}`;
 }
 
-export function fmtDayHeader(iso) {
+export function fmtDayHeader(iso: string): string {
   const d = new Date(iso);
   const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const days   = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
   return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
 }
 
-export function isoDateKey(iso) {
+export function isoDateKey(iso: string): string {
   return iso.slice(0, 10);
 }
 
-export function rangeForPeriod(period) {
+export function rangeForPeriod(period: string): { from: string; to: string } {
   const end = new Date();
   const start = new Date(end);
   if (period === 'day') {
