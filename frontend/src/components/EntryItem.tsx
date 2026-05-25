@@ -12,6 +12,7 @@ interface EntryItemProps {
   onRestart?: () => void;
   editingId: number | null;
   setEditingId: (id: number | null) => void;
+  timeOnly?: boolean;
 }
 
 interface Draft {
@@ -28,19 +29,32 @@ function toLocalInput(iso: string | null | undefined): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function toTimeInput(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 function fromLocalInput(s: string): string | null {
   return s ? new Date(s).toISOString() : null;
 }
 
+function applyTimeInput(hhmm: string, originalIso: string): string {
+  const d = new Date(originalIso);
+  const [h, m] = hhmm.split(':').map(Number);
+  d.setHours(h, m, 0, 0);
+  return d.toISOString();
+}
+
 export default function EntryItem({
-  entry, projects = [], onChange, onRestart, editingId, setEditingId
+  entry, projects = [], onChange, onRestart, editingId, setEditingId, timeOnly = false
 }: EntryItemProps) {
   const editing = editingId === entry.id;
   const [draft, setDraft] = useState<Draft>({
     description: entry.description ?? '',
     project_id: entry.project_id ?? '',
-    started_at: toLocalInput(entry.started_at),
-    ended_at: toLocalInput(entry.ended_at)
+    started_at: timeOnly ? toTimeInput(entry.started_at) : toLocalInput(entry.started_at),
+    ended_at: timeOnly ? toTimeInput(entry.ended_at) : toLocalInput(entry.ended_at)
   });
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -57,18 +71,19 @@ export default function EntryItem({
     setDraft({
       description: entry.description ?? '',
       project_id: entry.project_id ?? '',
-      started_at: toLocalInput(entry.started_at),
-      ended_at: toLocalInput(entry.ended_at)
+      started_at: timeOnly ? toTimeInput(entry.started_at) : toLocalInput(entry.started_at),
+      ended_at: timeOnly ? toTimeInput(entry.ended_at) : toLocalInput(entry.ended_at)
     });
   }, [editing]);
 
   async function save(): Promise<void> {
-    const now = Date.now();
-    const startedAt = fromLocalInput(draft.started_at) ?? entry.started_at;
-    const endedAt = draft.ended_at ? fromLocalInput(draft.ended_at) : entry.ended_at;
+    const startedAt = timeOnly
+      ? applyTimeInput(draft.started_at, entry.started_at)
+      : (fromLocalInput(draft.started_at) ?? entry.started_at);
+    const endedAt = timeOnly
+      ? (draft.ended_at ? applyTimeInput(draft.ended_at, entry.ended_at ?? entry.started_at) : entry.ended_at)
+      : (draft.ended_at ? fromLocalInput(draft.ended_at) : entry.ended_at);
 
-    if (new Date(startedAt).getTime() > now) { showError('! start time cannot be in the future'); return; }
-    if (endedAt && new Date(endedAt).getTime() > now) { showError('! end time cannot be in the future'); return; }
     if (endedAt && new Date(endedAt) <= new Date(startedAt)) { showError('! end time must be after start time'); return; }
 
     try {
@@ -95,29 +110,23 @@ export default function EntryItem({
     onRestart?.();
   }
 
-  const nowMax = (() => {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() + 1, 0, 0);
-    return toLocalInput(d.toISOString());
-  })();
-
   if (editing) {
     return (
       <div className="entry-edit">
         <div className="entry-edit-row">
           <input
-            type="datetime-local"
+            type={timeOnly ? 'text' : 'datetime-local'}
             className="input"
+            placeholder={timeOnly ? 'HH:MM' : undefined}
             value={draft.started_at}
-            max={nowMax}
             onChange={(e) => setDraft({ ...draft, started_at: e.target.value })}
           />
           <span className="muted">→</span>
           <input
-            type="datetime-local"
+            type={timeOnly ? 'text' : 'datetime-local'}
             className="input"
+            placeholder={timeOnly ? 'HH:MM' : undefined}
             value={draft.ended_at}
-            max={nowMax}
             onChange={(e) => setDraft({ ...draft, ended_at: e.target.value })}
           />
           <select

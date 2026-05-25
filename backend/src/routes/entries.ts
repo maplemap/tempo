@@ -130,14 +130,7 @@ export default async function entryRoutes(fastify: FastifyInstance): Promise<voi
     const next = { ...current, ...req.body };
     const startedAt = next.started_at;
     const endedAt = next.ended_at;
-    const now = Date.now();
 
-    if (new Date(startedAt).getTime() > now) {
-      reply.code(400).send({ error: 'started_at cannot be in the future' }); return;
-    }
-    if (endedAt && new Date(endedAt).getTime() > now) {
-      reply.code(400).send({ error: 'ended_at cannot be in the future' }); return;
-    }
     if (endedAt && new Date(endedAt) <= new Date(startedAt)) {
       reply.code(400).send({ error: 'ended_at must be after started_at' }); return;
     }
