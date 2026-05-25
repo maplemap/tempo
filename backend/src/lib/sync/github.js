@@ -75,6 +75,10 @@ async function searchAll(query) {
   return all;
 }
 
+const listProjectBranches = db.prepare(
+  `SELECT DISTINCT COALESCE(github_base_branch, 'main') as branch FROM projects WHERE github_repo IS NOT NULL`
+);
+
 export async function syncGitHub({ days } = {}) {
   if (!env.github.token) {
     throw new Error('GITHUB_TOKEN not configured');
@@ -83,7 +87,6 @@ export async function syncGitHub({ days } = {}) {
   const window = days || env.backfillDays;
   const since = new Date(Date.now() - window * 86400 * 1000).toISOString().slice(0, 10);
   const user = await whoami();
-  const base = env.github.baseBranch;
 
   const writeBatch = db.transaction((items) => {
     for (const item of items) upsert.run(item);
@@ -95,17 +98,24 @@ export async function syncGitHub({ days } = {}) {
   const reviewed = await searchAll(`reviewed-by:${user} type:pr updated:>=${since} -author:${user}`);
   writeBatch(reviewed.map((i) => fromSearch(i, 'pr_reviewed', 'updated_at')));
 
-  const merged   = await searchAll(`author:${user} type:pr is:merged base:${base} merged:>=${since}`);
-  writeBatch(merged.map((i) => fromSearch(i, 'pr_merged', 'merged_at')));
+  const branches = listProjectBranches.all().map((r) => r.branch);
+  if (branches.length === 0) branches.push('main');
+
+  const allMerged = [];
+  for (const branch of branches) {
+    const items = await searchAll(`author:${user} type:pr is:merged base:${branch} merged:>=${since}`);
+    allMerged.push(...items);
+  }
+  writeBatch(allMerged.map((i) => fromSearch(i, 'pr_merged', 'merged_at')));
 
   return {
     user,
-    base,
+    bases: branches,
     since,
     counts: {
       pr_created:  created.length,
       pr_reviewed: reviewed.length,
-      pr_merged:   merged.length
+      pr_merged:   allMerged.length
     }
   };
 }

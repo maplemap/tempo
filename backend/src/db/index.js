@@ -18,5 +18,6 @@ const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
 db.exec(schema);
 
 try { db.exec(`ALTER TABLE projects ADD COLUMN github_repo TEXT`); } catch {}
+try { db.exec(`ALTER TABLE projects ADD COLUMN github_base_branch TEXT`); } catch {}
 
 console.log(`[db] using ${dbFile}`);

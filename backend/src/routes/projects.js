@@ -4,7 +4,7 @@ import { requireAuth } from '../lib/auth.js';
 const listProjects = db.prepare(`SELECT * FROM projects ORDER BY archived ASC, name ASC`);
 const getProject = db.prepare(`SELECT * FROM projects WHERE id = ?`);
 const insertProject = db.prepare(`INSERT INTO projects (name) VALUES (?)`);
-const updateProject = db.prepare(`UPDATE projects SET name = @name, archived = @archived, github_repo = @github_repo WHERE id = @id`);
+const updateProject = db.prepare(`UPDATE projects SET name = @name, archived = @archived, github_repo = @github_repo, github_base_branch = @github_base_branch WHERE id = @id`);
 const deleteProject = db.prepare(`DELETE FROM projects WHERE id = ?`);
 
 export default async function projectRoutes(fastify) {
@@ -41,7 +41,8 @@ export default async function projectRoutes(fastify) {
       id: current.id,
       name: next.name,
       archived: next.archived ? 1 : 0,
-      github_repo: next.github_repo ?? null
+      github_repo: next.github_repo ?? null,
+      github_base_branch: next.github_base_branch ?? null
     });
     return { project: getProject.get(current.id) };
   });

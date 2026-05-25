@@ -48,8 +48,6 @@ Open `http://localhost:$PORT` — backend proxies non-API requests to Vite (with
 | `ADMIN_PASSWORD` | Login password (required) |
 | `JWT_SECRET` | Token signing secret (required) |
 | `PORT` | Backend port, default 3000 |
-| `DATA_DIR` | SQLite file location, default `./data` |
 | `GITHUB_TOKEN` | Personal access token for GitHub sync |
-| `GITHUB_BASE_BRANCH` | Branch counted as "merged" for tasks-done metric, default `main` |
 | `SYNC_INTERVAL_MINUTES` | Sync cron interval, default 15 |
 | `BACKFILL_DAYS` | Initial sync backfill window, default 30 |

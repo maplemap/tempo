@@ -26,8 +26,7 @@ export const env = {
   isProduction: process.env.NODE_ENV === 'production',
   secureCookie: process.env.SECURE_COOKIE === 'true',
   github: {
-    token: process.env.GITHUB_TOKEN || null,
-    baseBranch: process.env.GITHUB_BASE_BRANCH || 'main'
+    token: process.env.GITHUB_TOKEN || null
   },
   syncIntervalMinutes: num('SYNC_INTERVAL_MINUTES', 15),
   backfillDays: num('BACKFILL_DAYS', 30)
