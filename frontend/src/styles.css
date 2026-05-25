@@ -556,4 +556,13 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     display: block;
     clear: both;
   }
+
+  .entry-edit-row {
+    flex-wrap: wrap;
+  }
+
+  .entry-edit-row input[type="datetime-local"] {
+    min-width: 150px;
+    flex: 1 1 140px;
+  }
 }
