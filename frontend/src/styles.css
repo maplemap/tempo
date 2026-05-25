@@ -609,4 +609,20 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     flex-wrap: wrap;
     gap: 8px;
   }
+
+  .running {
+    padding: 24px 16px;
+  }
+
+  .running .timer-display {
+    font-size: 64px;
+  }
+
+  .running .running-desc {
+    font-size: 16px;
+  }
+
+  .login-card {
+    padding: 24px 16px;
+  }
 }
