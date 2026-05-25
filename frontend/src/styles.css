@@ -565,4 +565,48 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     min-width: 150px;
     flex: 1 1 140px;
   }
+
+  /* Dashboard rows — shrink name column */
+  .dash-row {
+    grid-template-columns: minmax(0, 1fr) 60px 60px 36px;
+  }
+
+  .dash-row .name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Counters — 2 columns, third spans full width */
+  .counters {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .counter-block:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+
+  /* Timer form — stack label above input */
+  .timer-form {
+    grid-template-columns: 1fr;
+    gap: 4px 0;
+  }
+
+  .timer-form .label {
+    margin-top: 12px;
+    margin-bottom: 2px;
+  }
+
+  /* Timer display — slightly smaller */
+  .timer-display {
+    font-size: 44px;
+  }
+
+  /* Page headers — period buttons wrap on small screens */
+  .hd {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
 }
