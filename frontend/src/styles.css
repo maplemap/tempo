@@ -500,4 +500,8 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   .nav .btn:nth-child(odd) {
     border-right: 1px solid var(--hairline);
   }
+
+  .nav-running {
+    display: none;
+  }
 }
