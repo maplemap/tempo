@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
+import ConfirmInline from '../components/ConfirmInline.jsx';
 
 export default function SettingsPage({ onLogout }) {
   const [projects, setProjects] = useState([]);
@@ -8,6 +9,7 @@ export default function SettingsPage({ onLogout }) {
   const [syncState, setSyncState] = useState([]);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   async function refresh() {
     const [p, s] = await Promise.all([api.projects.list(), api.sync.state()]);
@@ -38,8 +40,8 @@ export default function SettingsPage({ onLogout }) {
   }
 
   async function remove(p) {
-    if (!confirm(`Delete project "${p.name}"? Entries keep their data but lose project link.`)) return;
     await api.projects.remove(p.id);
+    setConfirmDeleteId(null);
     refresh();
   }
 
@@ -94,7 +96,10 @@ export default function SettingsPage({ onLogout }) {
             <button className="btn" onClick={() => toggleArchive(p)}>
               [ {p.archived ? 'UNARCHIVE' : 'ARCHIVE'} ]
             </button>
-            <button className="btn" onClick={() => remove(p)}>[ DELETE ]</button>
+            {confirmDeleteId === p.id
+              ? <ConfirmInline message={`delete "${p.name}"?`} onConfirm={() => remove(p)} onCancel={() => setConfirmDeleteId(null)} />
+              : <button className="btn" onClick={() => setConfirmDeleteId(p.id)}>[ DELETE ]</button>
+            }
           </div>
           <div style={{ display: 'flex', gap: 12, marginTop: 6, alignItems: 'flex-end' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>

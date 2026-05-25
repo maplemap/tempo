@@ -401,6 +401,22 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   letter-spacing: 0.05em;
 }
 
+.entry-error {
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  margin-top: 6px;
+  background: var(--fg);
+  color: var(--bg);
+  display: inline-block;
+  animation: entry-error-in 0.1s ease;
+}
+
+@keyframes entry-error-in {
+  from { opacity: 0; transform: translateX(-4px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
 .flex {
   display: flex;
   align-items: center;

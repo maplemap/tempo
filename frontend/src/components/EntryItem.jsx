@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api.js';
 import { fmtTimeHM, fmtDuration } from '../lib/time.js';
+import ConfirmInline from './ConfirmInline.jsx';
 
 function toLocalInput(iso) {
   if (!iso) return '';
@@ -21,6 +22,15 @@ export default function EntryItem({ entry, projects = [], onChange, onRestart, e
     started_at: toLocalInput(entry.started_at),
     ended_at: toLocalInput(entry.ended_at)
   });
+  const [error, setError] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const errorTimer = useRef(null);
+
+  function showError(msg) {
+    clearTimeout(errorTimer.current);
+    setError(msg);
+    errorTimer.current = setTimeout(() => setError(null), 3500);
+  }
 
   useEffect(() => {
     if (!editing) return;
@@ -33,18 +43,38 @@ export default function EntryItem({ entry, projects = [], onChange, onRestart, e
   }, [editing]);
 
   async function save() {
-    await api.entries.update(entry.id, {
-      description: draft.description,
-      project_id: draft.project_id === '' ? null : Number(draft.project_id),
-      started_at: fromLocalInput(draft.started_at) || entry.started_at,
-      ended_at: draft.ended_at ? fromLocalInput(draft.ended_at) : entry.ended_at
-    });
-    setEditingId(null);
-    onChange?.();
+    const now = Date.now();
+    const startedAt = fromLocalInput(draft.started_at) || entry.started_at;
+    const endedAt = draft.ended_at ? fromLocalInput(draft.ended_at) : entry.ended_at;
+
+    if (new Date(startedAt).getTime() > now) {
+      showError('! start time cannot be in the future');
+      return;
+    }
+    if (endedAt && new Date(endedAt).getTime() > now) {
+      showError('! end time cannot be in the future');
+      return;
+    }
+    if (endedAt && new Date(endedAt) <= new Date(startedAt)) {
+      showError('! end time must be after start time');
+      return;
+    }
+
+    try {
+      await api.entries.update(entry.id, {
+        description: draft.description,
+        project_id: draft.project_id === '' ? null : Number(draft.project_id),
+        started_at: startedAt,
+        ended_at: endedAt
+      });
+      setEditingId(null);
+      onChange?.();
+    } catch (e) {
+      showError(`! ${e.message}`);
+    }
   }
 
   async function remove() {
-    if (!confirm('Delete this entry?')) return;
     await api.entries.remove(entry.id);
     onChange?.();
   }
@@ -102,9 +132,13 @@ export default function EntryItem({ entry, projects = [], onChange, onRestart, e
             style={{ flex: 1 }}
           />
           <button className="btn solid" onClick={save}>[ SAVE ]</button>
-          <button className="btn" onClick={() => setEditingId(null)}>[ CANCEL ]</button>
-          <button className="btn" onClick={remove}>[ DELETE ]</button>
+          <button className="btn" onClick={() => { setEditingId(null); setConfirmDelete(false); }}>[ CANCEL ]</button>
+          {confirmDelete
+            ? <ConfirmInline message="delete entry?" onConfirm={remove} onCancel={() => setConfirmDelete(false)} />
+            : <button className="btn" onClick={() => setConfirmDelete(true)}>[ DELETE ]</button>
+          }
         </div>
+        {error && <div className="entry-error">{error}</div>}
       </div>
     );
   }
@@ -136,13 +170,22 @@ export default function EntryItem({ entry, projects = [], onChange, onRestart, e
         >
           [ ▶ ]
         </button>
-        <button
-          className="btn icon-btn"
-          onClick={(e) => { e.stopPropagation(); remove(); }}
-          title="Delete entry"
-        >
-          [ × ]
-        </button>
+        {confirmDelete
+          ? (
+            <span onClick={(e) => e.stopPropagation()}>
+              <ConfirmInline message="delete?" onConfirm={remove} onCancel={() => setConfirmDelete(false)} />
+            </span>
+          )
+          : (
+            <button
+              className="btn icon-btn"
+              onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
+              title="Delete entry"
+            >
+              [ × ]
+            </button>
+          )
+        }
       </span>
     </div>
   );
