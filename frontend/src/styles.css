@@ -276,6 +276,41 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   color: var(--bg);
 }
 
+.nav-running {
+  position: relative;
+  padding: 4px 8px;
+  font-size: 14px;
+  color: #c0392b;
+  cursor: default;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+
+.nav-running::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--fg);
+  color: var(--bg);
+  padding: 4px 10px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+}
+
+.nav-running:hover::after {
+  opacity: 1;
+}
+
 /* Running timer — full screen invert */
 .running {
   position: fixed;

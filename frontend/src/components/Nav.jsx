@@ -1,4 +1,6 @@
-import { NavLink } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { api } from '../lib/api.js';
 
 const items = [
   { to: '/',          label: 'Timer' },
@@ -8,6 +10,19 @@ const items = [
 ];
 
 export default function Nav() {
+  const [current, setCurrent] = useState(null);
+  const location = useLocation();
+
+  useEffect(() => {
+    api.timer.current()
+      .then(({ current }) => setCurrent(current))
+      .catch(() => setCurrent(null));
+  }, [location.pathname]);
+
+  const tooltip = current
+    ? [current.project_name, current.description].filter(Boolean).join(' / ')
+    : '';
+
   return (
     <nav className="nav">
       {items.map((it) => (
@@ -20,6 +35,9 @@ export default function Nav() {
           [ {it.label} ]
         </NavLink>
       ))}
+      {current && (
+        <div className="nav-running" data-tooltip={tooltip}>●</div>
+      )}
     </nav>
   );
 }

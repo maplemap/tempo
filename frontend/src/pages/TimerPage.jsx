@@ -4,6 +4,54 @@ import { fmtClock, fmtDate, fmtDuration, rangeForPeriod } from '../lib/time.js';
 import EntryItem from '../components/EntryItem.jsx';
 import { renderDescription } from '../lib/renderDescription.jsx';
 
+const FAVICON_SIZE        = 64;
+const FAVICON_RADIUS      = 30;
+const FAVICON_FONT_SM     = 24;
+const FAVICON_FONT_LG     = 34;
+const FAVICON_PULSE_PERIOD = 2500;
+const FAVICON_COLOR_ACTIVE = [220, 38, 38];
+const FAVICON_COLOR_IDLE   = [120, 120, 120];
+
+function lerpColor([r1, g1, b1], [r2, g2, b2], t) {
+  return `rgb(${Math.round(r1+(r2-r1)*t)},${Math.round(g1+(g2-g1)*t)},${Math.round(b1+(b2-b1)*t)})`;
+}
+
+function drawFavicon(minutes, color) {
+  const canvas = document.createElement('canvas');
+  canvas.width = FAVICON_SIZE;
+  canvas.height = FAVICON_SIZE;
+  const ctx = canvas.getContext('2d');
+  const center = FAVICON_SIZE / 2;
+
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(center, center, FAVICON_RADIUS, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (minutes !== null) {
+    const label = minutes < 100 ? String(minutes) : '99+';
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${label.length > 2 ? FAVICON_FONT_SM : FAVICON_FONT_LG}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, center, center + 2);
+  }
+
+  let link = document.getElementById('tempo-favicon');
+  if (!link) {
+    link = document.createElement('link');
+    link.id = 'tempo-favicon';
+    link.rel = 'icon';
+    document.head.appendChild(link);
+  }
+  link.href = canvas.toDataURL('image/png');
+}
+
+function clearFavicon() {
+  const link = document.getElementById('tempo-favicon');
+  if (link) link.remove();
+}
+
 const LAST_PROJECT_KEY = 'tempo:lastProjectId';
 
 export default function TimerPage() {
@@ -17,6 +65,10 @@ export default function TimerPage() {
   }));
   const [tick, setTick] = useState(0);
   const startedAtRef = useRef(null);
+
+  const elapsedSec = current && startedAtRef.current
+    ? Math.floor((Date.now() - startedAtRef.current) / 1000)
+    : 0;
 
   async function refresh() {
     const [{ current }, { projects }, { entries }] = await Promise.all([
@@ -40,6 +92,46 @@ export default function TimerPage() {
     const id = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, [current]);
+
+  useEffect(() => {
+    if (!current) {
+      document.title = 'Tempo';
+      return;
+    }
+    const mins = Math.floor(elapsedSec / 60);
+    const parts = [current.project_name, current.description].filter(Boolean).join(' - ');
+    document.title = `${String(mins).padStart(2, '0')}m — Tempo${parts ? ` | ${parts}` : ''}`;
+  }, [current, elapsedSec]);
+
+  useEffect(() => {
+    if (!current) {
+      const [r, g, b] = FAVICON_COLOR_IDLE;
+      drawFavicon(null, `rgb(${r},${g},${b})`);
+      return () => clearFavicon();
+    }
+    let rafId;
+    function animate() {
+      const elapsed = startedAtRef.current
+        ? (Date.now() - startedAtRef.current) / 1000
+        : 0;
+      const mins = Math.floor(elapsed / 60);
+      const t = (Math.sin((Date.now() / FAVICON_PULSE_PERIOD) * Math.PI) + 1) / 2;
+      drawFavicon(mins, lerpColor(FAVICON_COLOR_ACTIVE, FAVICON_COLOR_IDLE, t));
+      rafId = requestAnimationFrame(animate);
+    }
+    animate();
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearFavicon();
+    };
+  }, [current]);
+
+  useEffect(() => {
+    return () => {
+      document.title = 'Tempo';
+      clearFavicon();
+    };
+  }, []);
 
   async function start() {
     const res = await api.timer.start({
@@ -75,10 +167,6 @@ export default function TimerPage() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [current, draft.projectId, draft.description]);
-
-  const elapsedSec = current && startedAtRef.current
-    ? Math.floor((Date.now() - startedAtRef.current) / 1000)
-    : 0;
 
   if (current) {
     return (
