@@ -480,4 +480,24 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   .app {
     padding: 16px 16px 96px;
   }
+
+  .nav {
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+
+  .nav .btn {
+    min-width: unset;
+    width: 100%;
+    border: none;
+    border-top: 1px solid var(--hairline);
+    padding: 12px 4px;
+    text-align: center;
+  }
+
+  .nav .btn:nth-child(odd) {
+    border-right: 1px solid var(--hairline);
+  }
 }
