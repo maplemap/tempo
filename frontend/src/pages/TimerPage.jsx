@@ -57,6 +57,7 @@ export default function TimerPage() {
     } finally {
       setCurrent(null);
       setTick(0);
+      setDraft((d) => ({ ...d, description: '' }));
       await refresh();
     }
   }
