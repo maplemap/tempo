@@ -1,5 +1,5 @@
 import { request } from 'undici';
-// @ts-ignore — db/index.js is not yet migrated to TS
+// @ts-ignore -- db/index.js will be migrated to .ts in the next task
 import { db } from '../db/index.js';
 import { env } from './env.js';
 
