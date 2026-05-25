@@ -3,7 +3,7 @@ export type EventType = 'pr_created' | 'pr_reviewed' | 'pr_merged';
 export interface ExternalEvent {
   id: number;
   source: string;
-  event_type: string;
+  event_type: EventType;
   ref_id: string;
   ref_url: string;
   title: string | null;
