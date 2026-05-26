@@ -121,7 +121,6 @@ export default function TimerPage() {
   const [startDraft, setStartDraft] = useState('');
   const [startError, setStartError] = useState<string | null>(null);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
-  const [weeksLoaded, setWeeksLoaded] = useState(1);
   const startedAtRef = useRef<number | null>(null);
 
   function toggleDay(key: string) {
@@ -136,11 +135,11 @@ export default function TimerPage() {
     ? Math.max(0, Math.floor((Date.now() - startedAtRef.current) / 1000))
     : 0;
 
-  async function refresh(weeks = weeksLoaded) {
+  async function refresh() {
     const [{ current: timerCurrent }, { projects: prjs }, { entries: ents }] = await Promise.all([
       api.timer.current(),
       api.projects.list(),
-      api.entries.list(rangeLastNDays(weeks * 7 + 1))
+      api.entries.list(rangeLastNDays(8))
     ]);
     setCurrent(timerCurrent);
     setProjects(prjs);
@@ -149,12 +148,6 @@ export default function TimerPage() {
       startedAtRef.current = new Date(timerCurrent.started_at).getTime();
       setDraft({ projectId: timerCurrent.project_id ?? '', description: timerCurrent.description || '' });
     }
-  }
-
-  async function loadMore() {
-    const next = weeksLoaded + 1;
-    setWeeksLoaded(next);
-    await refresh(next);
   }
 
   useEffect(() => { refresh(); }, []);
@@ -410,9 +403,6 @@ export default function TimerPage() {
             onRestart={refresh}
           />
         ))}
-        <div style={{ padding: '12px 0', textAlign: 'center' }}>
-          <button className="btn" onClick={loadMore}>[ load more ]</button>
-        </div>
       </div>
     </div>
   );
