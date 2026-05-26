@@ -56,3 +56,11 @@ export function rangeForPeriod(period: string): { from: string; to: string } {
   }
   return { from: start.toISOString(), to: end.toISOString() };
 }
+
+export function rangeLastNDays(n: number): { from: string; to: string } {
+  const to = new Date();
+  const from = new Date();
+  from.setUTCDate(from.getUTCDate() - (n - 1));
+  from.setUTCHours(0, 0, 0, 0);
+  return { from: from.toISOString(), to: to.toISOString() };
+}
