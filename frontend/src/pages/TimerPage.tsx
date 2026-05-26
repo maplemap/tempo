@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import type { Entry, Project, TimerEntry } from '../lib/api';
-import { fmtClock, fmtDate, fmtDuration, fmtTimeHM, isoDateKey, rangeLastNDays } from '../lib/time';
+import { fmtClock, fmtDate, fmtDuration, fmtDayHeader, fmtTimeHM, isoDateKey, rangeLastNDays } from '../lib/time';
 import EntryItem from '../components/EntryItem';
 import { renderDescription } from '../lib/renderDescription';
 
@@ -51,6 +51,60 @@ const LAST_PROJECT_KEY = 'tempo:lastProjectId';
 interface Draft {
   projectId: string | number;
   description: string;
+}
+
+interface PastDaySectionProps {
+  entries: Entry[];
+  collapsed: boolean;
+  onToggle: () => void;
+  onRestart: () => void;
+}
+
+function PastDaySection({ entries, collapsed, onToggle, onRestart }: PastDaySectionProps) {
+  if (entries.length === 0) return null;
+
+  const totalSec = entries.reduce((s, e) => s + (e.duration_seconds ?? 0), 0);
+
+  async function restart(entry: Entry) {
+    await api.timer.start({ projectId: entry.project_id, description: entry.description ?? '' });
+    onRestart();
+  }
+
+  return (
+    <>
+      <hr className="rule" />
+      <div
+        className="spread"
+        style={{ cursor: 'pointer', userSelect: 'none' }}
+        onClick={onToggle}
+      >
+        <span>
+          <span className="muted" style={{ marginRight: 6 }}>{collapsed ? '▶' : '▼'}</span>
+          <span className="section-title" style={{ margin: 0 }}>{fmtDayHeader(entries[0].started_at)}</span>
+        </span>
+        <span className="muted" style={{ fontSize: 12 }}>
+          {fmtDuration(totalSec)}{' · '}{entries.length} entries
+        </span>
+      </div>
+      {!collapsed && (
+        <div className="entries">
+          {entries.map((e) => (
+            <div key={e.id} className="entry-row" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="proj">{e.project_name ?? '—'}</span>
+              <span className="desc" style={{ flex: 1 }}>{e.description ?? ''}</span>
+              <span className="entry-actions">
+                <button
+                  className="btn icon-btn"
+                  onClick={() => restart(e)}
+                  title="Restart this task"
+                >[ ▶ ]</button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
 }
 
 export default function TimerPage() {
@@ -336,6 +390,18 @@ export default function TimerPage() {
             />
           ))}
         </div>
+        <PastDaySection
+          entries={yesterdayEntries}
+          collapsed={!expandedDays.has(yesterdayKey)}
+          onToggle={() => toggleDay(yesterdayKey)}
+          onRestart={refresh}
+        />
+        <PastDaySection
+          entries={dayBeforeEntries}
+          collapsed={!expandedDays.has(dayBeforeKey)}
+          onToggle={() => toggleDay(dayBeforeKey)}
+          onRestart={refresh}
+        />
       </div>
     </div>
   );
