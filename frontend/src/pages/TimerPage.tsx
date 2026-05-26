@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import type { Entry, Project, TimerEntry } from '../lib/api';
-import { fmtClock, fmtDate, fmtDuration, fmtTimeHM, rangeForPeriod } from '../lib/time';
+import { fmtClock, fmtDate, fmtDuration, fmtTimeHM, isoDateKey, rangeLastNDays } from '../lib/time';
 import EntryItem from '../components/EntryItem';
 import { renderDescription } from '../lib/renderDescription';
 
@@ -66,7 +66,16 @@ export default function TimerPage() {
   const [editingStart, setEditingStart] = useState(false);
   const [startDraft, setStartDraft] = useState('');
   const [startError, setStartError] = useState<string | null>(null);
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const startedAtRef = useRef<number | null>(null);
+
+  function toggleDay(key: string) {
+    setExpandedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
 
   const elapsedSec = current && startedAtRef.current
     ? Math.max(0, Math.floor((Date.now() - startedAtRef.current) / 1000))
@@ -76,7 +85,7 @@ export default function TimerPage() {
     const [{ current: timerCurrent }, { projects: prjs }, { entries: ents }] = await Promise.all([
       api.timer.current(),
       api.projects.list(),
-      api.entries.list(rangeForPeriod('day'))
+      api.entries.list(rangeLastNDays(3))
     ]);
     setCurrent(timerCurrent);
     setProjects(prjs);
@@ -204,6 +213,14 @@ export default function TimerPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [current, draft.projectId, draft.description]);
 
+  const todayKey      = new Date().toISOString().slice(0, 10);
+  const yesterdayKey  = (() => { const d = new Date(); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10); })();
+  const dayBeforeKey  = (() => { const d = new Date(); d.setUTCDate(d.getUTCDate() - 2); return d.toISOString().slice(0, 10); })();
+
+  const todayEntries     = entries.filter((e) => isoDateKey(e.started_at) === todayKey);
+  const yesterdayEntries = entries.filter((e) => isoDateKey(e.started_at) === yesterdayKey);
+  const dayBeforeEntries = entries.filter((e) => isoDateKey(e.started_at) === dayBeforeKey);
+
   if (current) {
     return (
       <div className="running">
@@ -295,18 +312,18 @@ export default function TimerPage() {
         <div className="spread">
           <span className="section-title">Today</span>
           <span className="muted" style={{ fontSize: 12 }}>
-            {fmtDuration(entries.reduce((s, e) => s + (e.duration_seconds || 0), 0))}
-            {' · '}{entries.length} entries
+            {fmtDuration(todayEntries.reduce((s, e) => s + (e.duration_seconds || 0), 0))}
+            {' · '}{todayEntries.length} entries
           </span>
         </div>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
         <div className="entries">
-          {entries.length === 0 && (
+          {todayEntries.length === 0 && (
             <div className="muted" style={{ padding: '12px 0' }}>no entries yet</div>
           )}
-          {entries.map((e) => (
+          {todayEntries.map((e) => (
             <EntryItem
               key={e.id}
               entry={e}
