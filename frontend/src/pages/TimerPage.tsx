@@ -110,7 +110,7 @@ export default function TimerPage() {
 
   useEffect(() => {
     if (!current) {
-      drawFavicon(null, '#000');
+      drawFavicon(null, '#878787');
       return () => clearFavicon();
     }
 
