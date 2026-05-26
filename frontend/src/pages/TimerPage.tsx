@@ -81,7 +81,7 @@ export default function TimerPage() {
   const rafId = useRef<number>(0);
 
   const elapsedSec = current && startedAtRef.current
-    ? Math.floor((Date.now() - startedAtRef.current) / 1000)
+    ? Math.max(0, Math.floor((Date.now() - startedAtRef.current) / 1000))
     : 0;
 
   async function refresh() {
