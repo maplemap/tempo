@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Entry, Project, TimerEntry } from '../lib/api';
 import { fmtClock, fmtDate, fmtDuration, fmtDayHeader, fmtTimeHM, isoDateKey, rangeLastNDays } from '../lib/time';
@@ -108,6 +109,7 @@ function PastDaySection({ entries, collapsed, onToggle, onRestart }: PastDaySect
 }
 
 export default function TimerPage() {
+  const location = useLocation();
   const [current, setCurrent] = useState<TimerEntry | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -150,7 +152,7 @@ export default function TimerPage() {
     }
   }
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { refresh(); }, [location.key]);
 
   useEffect(() => {
     if (!current) return;

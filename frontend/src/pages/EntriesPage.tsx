@@ -7,56 +7,74 @@ import EntryItem from '../components/EntryItem';
 
 type Period = 'week' | 'month' | 'all';
 
-const ITEMS_PER_PAGE = 50;
-
 const periods: Array<{ key: Period; label: string }> = [
   { key: 'week',  label: 'Week' },
   { key: 'month', label: 'Month' },
   { key: 'all',   label: 'All' }
 ];
 
+function rangeForAll(monthsBack: number): { from: string; to: string } {
+  const end = new Date();
+  const start = new Date(end);
+  start.setMonth(start.getMonth() - monthsBack);
+  start.setHours(0, 0, 0, 0);
+  return { from: start.toISOString(), to: end.toISOString() };
+}
+
 export default function EntriesPage() {
   const [period, setPeriod] = useState<Period>('week');
   const [entries, setEntries] = useState<Entry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [offset, setOffset] = useState(0);
+  const [allMonthsBack, setAllMonthsBack] = useState(2);
   const [hasMore, setHasMore] = useState(false);
+  const [search, setSearch] = useState('');
   const navigate = useNavigate();
 
-  async function load(p: Period, off: number, accumulate: boolean) {
-    const range = rangeForPeriod(p);
-    const params: Record<string, string> = { ...range };
-    if (p === 'all') {
-      params.limit = String(ITEMS_PER_PAGE);
-      params.offset = String(off);
-    }
+  async function fetchAndSet(p: Period, monthsBack: number) {
+    const range = p === 'all' ? rangeForAll(monthsBack) : rangeForPeriod(p);
     const [e, proj] = await Promise.all([
-      api.entries.list(params),
+      api.entries.list(range),
       api.projects.list()
     ]);
-    setEntries(prev => accumulate ? [...prev, ...e.entries] : e.entries);
+    setEntries(e.entries);
     setProjects(proj.projects);
-    setHasMore(e.hasMore);
+    if (p === 'all') {
+      const probe = await api.entries.list({
+        from: new Date(0).toISOString(),
+        to: range.from,
+        limit: '1',
+        offset: '0'
+      });
+      setHasMore(probe.entries.length > 0);
+    }
   }
 
   useEffect(() => {
-    setOffset(0);
-    setEntries([]);
+    setAllMonthsBack(2);
     setHasMore(false);
-    load(period, 0, false);
+    setEntries([]);
+    setSearch('');
+    fetchAndSet(period, 2);
   }, [period]);
 
   async function refresh() {
-    setOffset(0);
-    await load(period, 0, false);
+    await fetchAndSet(period, allMonthsBack);
   }
 
   async function loadMore() {
-    const nextOffset = offset + ITEMS_PER_PAGE;
-    setOffset(nextOffset);
-    await load(period, nextOffset, true);
+    const nextMonths = allMonthsBack + 2;
+    setAllMonthsBack(nextMonths);
+    await fetchAndSet(period, nextMonths);
   }
+
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? entries.filter(e =>
+        (e.description ?? '').toLowerCase().includes(q) ||
+        (e.project_name ?? '').toLowerCase().includes(q)
+      )
+    : entries;
 
   return (
     <>
@@ -75,16 +93,23 @@ export default function EntriesPage() {
         </div>
       </div>
       <hr className="rule" />
+      <input
+        className="input"
+        placeholder="search..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ marginBottom: 8, width: '100%', boxSizing: 'border-box' }}
+      />
       <div className="spread" style={{ marginBottom: 8 }}>
-        <span className="muted" style={{ fontSize: 12 }}>{entries.length} entries</span>
+        <span className="muted" style={{ fontSize: 12 }}>{filtered.length} entries</span>
         <span className="muted" style={{ fontSize: 12 }}>
-          {fmtDuration(entries.reduce((s, e) => s + (e.duration_seconds || 0), 0))}
+          {fmtDuration(filtered.reduce((s, e) => s + (e.duration_seconds || 0), 0))}
         </span>
       </div>
       <div className="entries">
-        {entries.length === 0 && <div className="muted">no entries</div>}
+        {filtered.length === 0 && <div className="muted">no entries</div>}
         {Object.entries(
-          entries.reduce<Record<string, Entry[]>>((acc, e) => {
+          filtered.reduce<Record<string, Entry[]>>((acc, e) => {
             const key = isoDateKey(e.started_at);
             (acc[key] = acc[key] || []).push(e);
             return acc;

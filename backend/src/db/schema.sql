@@ -46,3 +46,13 @@ CREATE TABLE IF NOT EXISTS sync_state (
   last_synced_at   TEXT,
   last_error       TEXT
 );
+
+CREATE TABLE IF NOT EXISTS plans (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id INTEGER REFERENCES projects(id),
+  text       TEXT NOT NULL,
+  position   INTEGER NOT NULL DEFAULT 0,
+  done       INTEGER NOT NULL DEFAULT 0,
+  done_at    TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);

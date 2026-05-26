@@ -456,6 +456,192 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   margin-top: 4px;
 }
 
+/* Plans floating widget */
+.plans-float {
+  position: fixed;
+  bottom: 68px;
+  right: 24px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.plans-trigger {
+  font-size: 12px;
+  padding: 4px 10px;
+  background: var(--bg);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+.plans-trigger.active {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.plans-panel {
+  width: 500px;
+  border: 1px solid var(--hairline);
+  background: var(--bg);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+}
+
+.plans-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--hairline);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.plans-panel-body {
+  overflow-y: auto;
+  padding: 8px 12px 12px;
+  flex: 1;
+}
+
+.plan-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.plan-handle {
+  cursor: grab;
+  color: var(--muted);
+  font-size: 14px;
+  flex-shrink: 0;
+  touch-action: none;
+  line-height: 1;
+}
+
+.plan-handle:active { cursor: grabbing; }
+
+.plan-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.plan-proj {
+  color: var(--muted);
+}
+
+.plan-inline-select {
+  flex-shrink: 0;
+  width: auto;
+  max-width: 60px;
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--muted);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.plan-inline-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  padding: 1px 0;
+}
+
+.plan-inline-input:focus {
+  border-bottom-color: var(--hairline);
+  outline: none;
+}
+
+.plan-row--done .plan-inline-input,
+.plan-row--done .plan-inline-select,
+.plan-row--done .plan-text {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.plan-row--done .icon-btn {
+  color: #bbb;
+  border-color: #ccc;
+}
+
+
+.plans-panel-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.plans-panel-count {
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.plan-add-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 0 6px;
+  margin-bottom: 4px;
+  margin-left: 18px;
+}
+
+.plan-add-select {
+  flex-shrink: 0;
+  width: auto;
+  max-width: 60px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 11px;
+  padding: 2px 0;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.plan-add-input {
+  flex: 1;
+  min-width: 0;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 13px;
+  padding: 2px 0;
+  color: var(--muted);
+}
+
+.plan-add-input:focus {
+  color: var(--fg);
+}
+
+@media (max-width: 600px) {
+  .plans-float {
+    right: 12px;
+    bottom: 90px;
+  }
+
+  .plans-panel {
+    width: calc(100vw - 24px);
+    max-height: 60vh;
+  }
+
+  .plan-text { white-space: normal; }
+}
+
 /* Login */
 .login-wrap {
   display: flex;
