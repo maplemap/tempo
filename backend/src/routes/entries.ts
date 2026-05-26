@@ -34,13 +34,20 @@ interface EventRow {
 }
 
 interface RangeParams { fromIso: string; toIso: string; }
+interface RangePageParams extends RangeParams { limit: number; offset: number; }
 
-const listEntries = db.prepare<RangeParams, DbEntry>(`
+const listEntries = db.prepare<RangePageParams, DbEntry>(`
   SELECT e.*, p.name AS project_name, p.github_repo
   FROM time_entries e
   LEFT JOIN projects p ON p.id = e.project_id
   WHERE e.started_at >= @fromIso AND e.started_at < @toIso
   ORDER BY e.started_at DESC
+  LIMIT @limit OFFSET @offset
+`);
+
+const countEntries = db.prepare<RangeParams, { count: number }>(`
+  SELECT COUNT(*) AS count FROM time_entries e
+  WHERE e.started_at >= @fromIso AND e.started_at < @toIso
 `);
 
 const getEntry = db.prepare<[number | string], DbEntry>(`
@@ -109,12 +116,16 @@ function hydrate(entry: DbEntry, badgeIndex?: Map<string, Set<string>>): Entry {
 export default async function entryRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.addHook('preHandler', requireAuth);
 
-  fastify.get<{ Querystring: { from?: string; to?: string } }>('/', async (req) => {
-    const { from, to } = req.query;
+  fastify.get<{ Querystring: { from?: string; to?: string; limit?: string; offset?: string } }>('/', async (req) => {
+    const { from, to, limit: limitStr, offset: offsetStr } = req.query;
     const { fromIso, toIso } = parseRange(from, to);
-    const rows = listEntries.all({ fromIso, toIso });
+    const limit = limitStr ? parseInt(limitStr, 10) : 100000;
+    const offset = offsetStr ? parseInt(offsetStr, 10) : 0;
+    const rows = listEntries.all({ fromIso, toIso, limit, offset });
+    const total = countEntries.get({ fromIso, toIso })!.count;
+    const hasMore = offset + limit < total;
     const index = buildBadgeIndex(allEvents.all());
-    return { entries: rows.map((r) => hydrate(r, index)) };
+    return { entries: rows.map((r) => hydrate(r, index)), hasMore };
   });
 
   fastify.get<{ Params: { id: string } }>('/:id', async (req, reply) => {

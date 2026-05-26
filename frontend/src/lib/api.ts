@@ -70,7 +70,7 @@ export const api = {
   entries: {
     list:    (params: Record<string, string> = {}) => {
       const qs = new URLSearchParams(params).toString();
-      return request<{ entries: Entry[] }>(`/entries${qs ? `?${qs}` : ''}`);
+      return request<{ entries: Entry[]; hasMore: boolean }>(`/entries${qs ? `?${qs}` : ''}`);
     },
     update:  (id: number, body: object) =>
       request<{ entry: Entry }>(`/entries/${id}`, { method: 'PATCH', body }),

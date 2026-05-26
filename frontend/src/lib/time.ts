@@ -44,14 +44,15 @@ export function isoDateKey(iso: string): string {
 export function rangeForPeriod(period: string): { from: string; to: string } {
   const end = new Date();
   const start = new Date(end);
-  if (period === 'day') {
-    start.setHours(0, 0, 0, 0);
-  } else if (period === 'week') {
+  if (period === 'week') {
     const day = start.getDay() || 7;
     start.setDate(start.getDate() - (day - 1));
     start.setHours(0, 0, 0, 0);
   } else if (period === 'month') {
     start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+  } else if (period === 'all') {
+    start.setMonth(start.getMonth() - 2);
     start.setHours(0, 0, 0, 0);
   }
   return { from: start.toISOString(), to: end.toISOString() };
