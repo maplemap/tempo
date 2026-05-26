@@ -121,6 +121,7 @@ export default function TimerPage() {
   const [startDraft, setStartDraft] = useState('');
   const [startError, setStartError] = useState<string | null>(null);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const [weeksLoaded, setWeeksLoaded] = useState(1);
   const startedAtRef = useRef<number | null>(null);
 
   function toggleDay(key: string) {
@@ -135,11 +136,11 @@ export default function TimerPage() {
     ? Math.max(0, Math.floor((Date.now() - startedAtRef.current) / 1000))
     : 0;
 
-  async function refresh() {
+  async function refresh(weeks = weeksLoaded) {
     const [{ current: timerCurrent }, { projects: prjs }, { entries: ents }] = await Promise.all([
       api.timer.current(),
       api.projects.list(),
-      api.entries.list(rangeLastNDays(3))
+      api.entries.list(rangeLastNDays(weeks * 7 + 1))
     ]);
     setCurrent(timerCurrent);
     setProjects(prjs);
@@ -148,6 +149,12 @@ export default function TimerPage() {
       startedAtRef.current = new Date(timerCurrent.started_at).getTime();
       setDraft({ projectId: timerCurrent.project_id ?? '', description: timerCurrent.description || '' });
     }
+  }
+
+  async function loadMore() {
+    const next = weeksLoaded + 1;
+    setWeeksLoaded(next);
+    await refresh(next);
   }
 
   useEffect(() => { refresh(); }, []);
@@ -267,13 +274,17 @@ export default function TimerPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [current, draft.projectId, draft.description]);
 
-  const todayKey      = new Date().toISOString().slice(0, 10);
-  const yesterdayKey  = (() => { const d = new Date(); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10); })();
-  const dayBeforeKey  = (() => { const d = new Date(); d.setUTCDate(d.getUTCDate() - 2); return d.toISOString().slice(0, 10); })();
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayEntries = entries.filter((e) => isoDateKey(e.started_at) === todayKey);
 
-  const todayEntries     = entries.filter((e) => isoDateKey(e.started_at) === todayKey);
-  const yesterdayEntries = entries.filter((e) => isoDateKey(e.started_at) === yesterdayKey);
-  const dayBeforeEntries = entries.filter((e) => isoDateKey(e.started_at) === dayBeforeKey);
+  const pastDayMap = new Map<string, Entry[]>();
+  for (const e of entries) {
+    const key = isoDateKey(e.started_at);
+    if (key === todayKey) continue;
+    if (!pastDayMap.has(key)) pastDayMap.set(key, []);
+    pastDayMap.get(key)!.push(e);
+  }
+  const pastDayKeys = [...pastDayMap.keys()].sort((a, b) => b.localeCompare(a));
 
   if (current) {
     return (
@@ -390,18 +401,18 @@ export default function TimerPage() {
             />
           ))}
         </div>
-        <PastDaySection
-          entries={yesterdayEntries}
-          collapsed={!expandedDays.has(yesterdayKey)}
-          onToggle={() => toggleDay(yesterdayKey)}
-          onRestart={refresh}
-        />
-        <PastDaySection
-          entries={dayBeforeEntries}
-          collapsed={!expandedDays.has(dayBeforeKey)}
-          onToggle={() => toggleDay(dayBeforeKey)}
-          onRestart={refresh}
-        />
+        {pastDayKeys.map((key) => (
+          <PastDaySection
+            key={key}
+            entries={pastDayMap.get(key)!}
+            collapsed={!expandedDays.has(key)}
+            onToggle={() => toggleDay(key)}
+            onRestart={refresh}
+          />
+        ))}
+        <div style={{ padding: '12px 0', textAlign: 'center' }}>
+          <button className="btn" onClick={loadMore}>[ load more ]</button>
+        </div>
       </div>
     </div>
   );
