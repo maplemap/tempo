@@ -9,17 +9,6 @@ const FAVICON_SIZE        = 64;
 const FAVICON_RADIUS      = 30;
 const FAVICON_FONT_SM     = 24;
 const FAVICON_FONT_LG     = 34;
-const FAVICON_PULSE_PERIOD = 2500;
-const FAVICON_COLOR_ACTIVE: [number, number, number] = [220, 38, 38];
-const FAVICON_COLOR_IDLE:   [number, number, number] = [120, 120, 120];
-
-function lerpColor(
-  [r1, g1, b1]: [number, number, number],
-  [r2, g2, b2]: [number, number, number],
-  t: number
-): string {
-  return `rgb(${Math.round(r1+(r2-r1)*t)},${Math.round(g1+(g2-g1)*t)},${Math.round(b1+(b2-b1)*t)})`;
-}
 
 function drawFavicon(minutes: number | null, color: string): void {
   const canvas = document.createElement('canvas');
@@ -78,7 +67,6 @@ export default function TimerPage() {
   const [startDraft, setStartDraft] = useState('');
   const [startError, setStartError] = useState<string | null>(null);
   const startedAtRef = useRef<number | null>(null);
-  const rafId = useRef<number>(0);
 
   const elapsedSec = current && startedAtRef.current
     ? Math.max(0, Math.floor((Date.now() - startedAtRef.current) / 1000))
@@ -122,24 +110,20 @@ export default function TimerPage() {
 
   useEffect(() => {
     if (!current) {
-      const [r, g, b] = FAVICON_COLOR_IDLE;
-      drawFavicon(null, `rgb(${r},${g},${b})`);
+      drawFavicon(null, '#000');
       return () => clearFavicon();
     }
-    function animate() {
+
+    function tick() {
       const elapsed = startedAtRef.current
         ? (Date.now() - startedAtRef.current) / 1000
         : 0;
-      const mins = Math.floor(elapsed / 60);
-      const t = (Math.sin((Date.now() / FAVICON_PULSE_PERIOD) * Math.PI) + 1) / 2;
-      drawFavicon(mins, lerpColor(FAVICON_COLOR_ACTIVE, FAVICON_COLOR_IDLE, t));
-      rafId.current = requestAnimationFrame(animate);
+      drawFavicon(Math.floor(elapsed / 60), '#000');
     }
-    animate();
-    return () => {
-      cancelAnimationFrame(rafId.current);
-      clearFavicon();
-    };
+
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => { clearInterval(id); clearFavicon(); };
   }, [current]);
 
   useEffect(() => {
