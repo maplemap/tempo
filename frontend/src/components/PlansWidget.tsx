@@ -16,17 +16,26 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
-import type { Plan, Project } from '../lib/api';
+import type { Plan, Project, Task } from '../lib/api';
+
+function findOrCreateTask(tasks: Task[], name: string, projectId: number | null): Task | undefined {
+  return tasks.find(
+    (t) => t.name.toLowerCase() === name.toLowerCase() &&
+      (t.project_id === projectId || (t.project_id === null && projectId === null))
+  );
+}
 
 interface SortableItemProps {
   plan: Plan;
   projects: Project[];
+  tasks: Task[];
   onRun: (plan: Plan) => void;
   onUpdate: (id: number, patch: Partial<Plan>) => void;
   onDelete: (plan: Plan) => void;
+  onTasksChange: (tasks: Task[]) => void;
 }
 
-function SortableItem({ plan, projects, onRun, onUpdate, onDelete }: SortableItemProps) {
+function SortableItem({ plan, projects, tasks, onRun, onUpdate, onDelete, onTasksChange }: SortableItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: plan.id });
   const [text, setText] = useState(plan.text);
   const active = projects.filter((p) => !p.archived || p.id === plan.project_id);
@@ -37,6 +46,24 @@ function SortableItem({ plan, projects, onRun, onUpdate, onDelete }: SortableIte
     const trimmed = text.trim();
     if (!trimmed) { setText(plan.text); return; }
     if (trimmed === plan.text) return;
+
+    if (plan.task_id) {
+      await api.tasks.update(plan.task_id, { name: trimmed });
+    } else {
+      const pid = plan.project_id;
+      const existing = findOrCreateTask(tasks, trimmed, pid);
+      if (existing) {
+        const { plan: updated } = await api.plans.update(plan.id, { task_id: existing.id, text: trimmed });
+        onUpdate(plan.id, { task_id: updated.task_id, text: updated.text });
+        return;
+      } else {
+        const { task } = await api.tasks.create({ name: trimmed, project_id: pid });
+        onTasksChange([...tasks, task]);
+        const { plan: updated } = await api.plans.update(plan.id, { task_id: task.id, text: trimmed });
+        onUpdate(plan.id, { task_id: updated.task_id, text: updated.text });
+        return;
+      }
+    }
     const { plan: updated } = await api.plans.update(plan.id, { text: trimmed });
     onUpdate(plan.id, { text: updated.text });
   }
@@ -77,10 +104,12 @@ function SortableItem({ plan, projects, onRun, onUpdate, onDelete }: SortableIte
 
 interface AddRowProps {
   projects: Project[];
+  tasks: Task[];
   onAdd: (plan: Plan) => void;
+  onTasksChange: (tasks: Task[]) => void;
 }
 
-function AddRow({ projects, onAdd }: AddRowProps) {
+function AddRow({ projects, tasks, onAdd, onTasksChange }: AddRowProps) {
   const active = projects.filter((p) => !p.archived);
   const [projectId, setProjectId] = useState<string>(active[0] ? String(active[0].id) : '');
   const [text, setText] = useState('');
@@ -92,11 +121,21 @@ function AddRow({ projects, onAdd }: AddRowProps) {
   }, [projects.length]);
 
   async function submit() {
-    if (!text.trim()) return;
-    const { plan } = await api.plans.create({
-      project_id: projectId ? Number(projectId) : null,
-      text: text.trim(),
-    });
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const pid = projectId ? Number(projectId) : null;
+
+    const existing = findOrCreateTask(tasks, trimmed, pid);
+    let taskId: number;
+    if (existing) {
+      taskId = existing.id;
+    } else {
+      const { task } = await api.tasks.create({ name: trimmed, project_id: pid });
+      onTasksChange([...tasks, task]);
+      taskId = task.id;
+    }
+
+    const { plan } = await api.plans.create({ project_id: pid, task_id: taskId, text: trimmed });
     onAdd(plan);
     setText('');
     inputRef.current?.focus();
@@ -116,7 +155,7 @@ function AddRow({ projects, onAdd }: AddRowProps) {
       <input
         ref={inputRef}
         className="plan-add-input"
-        placeholder="some new"
+        placeholder="new plan..."
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
@@ -132,18 +171,21 @@ export default function PlansWidget() {
   const [open, setOpen] = useState(false);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [showDone, setShowDone] = useState(true);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   async function load() {
-    const [{ plans: p }, { projects: prjs }] = await Promise.all([
+    const [{ plans: p }, { projects: prjs }, { tasks: tks }] = await Promise.all([
       api.plans.list(),
       api.projects.list(),
+      api.tasks.list(),
     ]);
     setPlans(p);
     setProjects(prjs);
+    setTasks(tks);
   }
 
   useEffect(() => { void load(); }, []);
@@ -152,7 +194,6 @@ export default function PlansWidget() {
     if (!open) return;
     void load();
   }, [open]);
-
 
   const openPlans = plans.filter((p) => !p.done);
   const donePlans = plans.filter((p) => p.done).sort((a, b) =>
@@ -171,7 +212,11 @@ export default function PlansWidget() {
 
   async function handleRun(plan: Plan) {
     try { await api.timer.stop(); } catch {}
-    await api.timer.start({ projectId: plan.project_id, description: plan.text });
+    if (plan.task_id) {
+      await api.timer.start({ projectId: plan.project_id, taskId: plan.task_id });
+    } else {
+      await api.timer.start({ projectId: plan.project_id, description: plan.text });
+    }
     const { plan: updated } = await api.plans.update(plan.id, { done: true });
     setPlans((prev) => prev.map((p) => (p.id === plan.id ? updated : p)));
     setOpen(false);
@@ -213,7 +258,12 @@ export default function PlansWidget() {
           </div>
 
           <div className="plans-panel-body">
-            <AddRow projects={projects} onAdd={(plan) => setPlans((prev) => [...prev, plan])} />
+            <AddRow
+              projects={projects}
+              tasks={tasks}
+              onAdd={(plan) => setPlans((prev) => [...prev, plan])}
+              onTasksChange={setTasks}
+            />
 
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={openPlans.map((p) => p.id)} strategy={verticalListSortingStrategy}>
@@ -222,9 +272,11 @@ export default function PlansWidget() {
                     key={plan.id}
                     plan={plan}
                     projects={projects}
+                    tasks={tasks}
                     onRun={handleRun}
                     onUpdate={(id, patch) => setPlans((prev) => prev.map((p) => p.id === id ? { ...p, ...patch } : p))}
                     onDelete={handleDelete}
+                    onTasksChange={setTasks}
                   />
                 ))}
               </SortableContext>

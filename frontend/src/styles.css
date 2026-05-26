@@ -172,6 +172,51 @@ button {
   gap: 4px;
 }
 
+.entry-time-input {
+  width: 42px;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  font-size: inherit;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  padding: 0;
+  text-align: center;
+}
+
+.entry-time-input:focus {
+  border-bottom-color: var(--hairline);
+  outline: none;
+}
+
+.entry-proj-select {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.entry-desc-input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  font-size: inherit;
+  font-family: inherit;
+  padding: 0;
+  min-width: 0;
+}
+
+.entry-desc-input:focus {
+  border-bottom-color: var(--hairline);
+  outline: none;
+}
+
 .entry-clickable {
   cursor: pointer;
 }
@@ -405,6 +450,45 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   font-size: 11px;
   opacity: 0.7;
   margin-top: 4px;
+}
+
+/* Task autocomplete dropdown */
+.task-dropdown {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  background: var(--bg);
+  border: 1px solid var(--hairline);
+  z-index: 300;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.task-dropdown-item {
+  padding: 5px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-dropdown-item:hover,
+.task-dropdown-item.active {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.task-dropdown-item.create {
+  color: var(--muted);
+  border-top: 1px solid var(--hairline);
+}
+
+.task-dropdown-item.create:hover,
+.task-dropdown-item.create.active {
+  background: var(--fg);
+  color: var(--bg);
 }
 
 /* Dashboard */

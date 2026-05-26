@@ -7,6 +7,7 @@ import { autoLinkPRs } from '../lib/autolink.js';
 interface DbEntry {
   id: number;
   project_id: number | null;
+  task_id: number | null;
   description: string | null;
   started_at: string;
   ended_at: string | null;
@@ -149,11 +150,12 @@ export default async function entryRoutes(fastify: FastifyInstance): Promise<voi
     const duration = endedAt ? diffSeconds(startedAt, endedAt) : null;
 
     db.prepare<{
-      id: number; project_id: number | null; description: string;
+      id: number; project_id: number | null; task_id: number | null; description: string;
       started_at: string; ended_at: string | null; duration_seconds: number | null;
     }>(`
       UPDATE time_entries
       SET project_id = @project_id,
+          task_id = @task_id,
           description = @description,
           started_at = @started_at,
           ended_at = @ended_at,
@@ -162,6 +164,7 @@ export default async function entryRoutes(fastify: FastifyInstance): Promise<voi
     `).run({
       id: current.id,
       project_id: next.project_id ?? null,
+      task_id: next.task_id ?? null,
       description: next.description ?? '',
       started_at: startedAt,
       ended_at: endedAt ?? null,

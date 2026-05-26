@@ -47,9 +47,17 @@ CREATE TABLE IF NOT EXISTS sync_state (
   last_error       TEXT
 );
 
+CREATE TABLE IF NOT EXISTS tasks (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  name       TEXT NOT NULL,
+  project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS plans (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   project_id INTEGER REFERENCES projects(id),
+  task_id    INTEGER REFERENCES tasks(id) ON DELETE SET NULL,
   text       TEXT NOT NULL,
   position   INTEGER NOT NULL DEFAULT 0,
   done       INTEGER NOT NULL DEFAULT 0,

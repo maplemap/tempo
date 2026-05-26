@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
-import type { Entry, Project, TimerEntry } from '../lib/api';
+import type { Entry, Project, Task, TimerEntry } from '../lib/api';
 import { fmtClock, fmtDate, fmtDuration, fmtDayHeader, fmtTimeHM, isoDateKey, rangeLastNDays } from '../lib/time';
 import EntryItem from '../components/EntryItem';
 import { renderDescription } from '../lib/renderDescription';
@@ -48,11 +48,6 @@ function clearFavicon(): void {
 }
 
 const LAST_PROJECT_KEY = 'tempo:lastProjectId';
-
-interface Draft {
-  projectId: string | number;
-  description: string;
-}
 
 interface PastDaySectionProps {
   entries: Entry[];
@@ -112,12 +107,11 @@ export default function TimerPage() {
   const location = useLocation();
   const [current, setCurrent] = useState<TimerEntry | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [draft, setDraft] = useState<Draft>(() => ({
-    projectId: localStorage.getItem(LAST_PROJECT_KEY) || '',
-    description: ''
-  }));
+  const [projectId, setProjectId] = useState<string>(localStorage.getItem(LAST_PROJECT_KEY) || '');
+  const [taskText, setTaskText] = useState('');
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [tick, setTick] = useState(0);
   const [editingStart, setEditingStart] = useState(false);
   const [startDraft, setStartDraft] = useState('');
@@ -138,17 +132,23 @@ export default function TimerPage() {
     : 0;
 
   async function refresh() {
-    const [{ current: timerCurrent }, { projects: prjs }, { entries: ents }] = await Promise.all([
+    const [{ current: timerCurrent }, { projects: prjs }, { tasks: tks }, { entries: ents }] = await Promise.all([
       api.timer.current(),
       api.projects.list(),
-      api.entries.list(rangeLastNDays(8))
+      api.tasks.list(),
+      api.entries.list(rangeLastNDays(8)),
     ]);
     setCurrent(timerCurrent);
     setProjects(prjs);
+    setTasks(tks);
     setEntries(ents);
     if (timerCurrent) {
       startedAtRef.current = new Date(timerCurrent.started_at).getTime();
-      setDraft({ projectId: timerCurrent.project_id ?? '', description: timerCurrent.description || '' });
+      setProjectId(String(timerCurrent.project_id ?? ''));
+      if (timerCurrent.task_id) {
+        const t = tks.find((t) => t.id === timerCurrent.task_id) ?? null;
+        setSelectedTask(t);
+      }
     }
   }
 
@@ -235,10 +235,22 @@ export default function TimerPage() {
   }
 
   async function start() {
-    const res = await api.timer.start({
-      projectId: draft.projectId ? Number(draft.projectId) : null,
-      description: draft.description
-    });
+    const trimmed = taskText.trim();
+    if (!trimmed) return;
+    const pid = projectId ? Number(projectId) : null;
+
+    let task = selectedTask ?? tasks.find(
+      (t) => t.name.toLowerCase() === trimmed.toLowerCase() &&
+        (t.project_id === pid || (t.project_id === null && pid === null))
+    ) ?? null;
+
+    if (!task) {
+      const { task: created } = await api.tasks.create({ name: trimmed, project_id: pid });
+      setTasks((prev) => [...prev, created]);
+      task = created;
+    }
+
+    const res = await api.timer.start({ projectId: pid, taskId: task.id });
     setCurrent(res.current);
     startedAtRef.current = new Date(res.current.started_at).getTime();
   }
@@ -251,7 +263,8 @@ export default function TimerPage() {
     } finally {
       setCurrent(null);
       setTick(0);
-      setDraft((d) => ({ ...d, description: '' }));
+      setTaskText('');
+      setSelectedTask(null);
       await refresh();
     }
   }
@@ -267,7 +280,7 @@ export default function TimerPage() {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [current, draft.projectId, draft.description]);
+  }, [current, projectId, selectedTask]);
 
   const todayKey = new Date().toISOString().slice(0, 10);
   const todayEntries = entries.filter((e) => isoDateKey(e.started_at) === todayKey);
@@ -343,10 +356,10 @@ export default function TimerPage() {
           <span className="label">Project</span>
           <select
             className="input"
-            value={draft.projectId}
+            value={projectId}
             onChange={(e) => {
               const v = e.target.value;
-              setDraft({ ...draft, projectId: v });
+              setProjectId(v);
               if (v) localStorage.setItem(LAST_PROJECT_KEY, v);
               else localStorage.removeItem(LAST_PROJECT_KEY);
             }}
@@ -357,13 +370,13 @@ export default function TimerPage() {
             ))}
           </select>
 
-          <span className="label">What</span>
+          <span className="label">Task</span>
           <input
             className="input"
             placeholder="e.g. review PR #1301"
-            value={draft.description}
-            onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-            onKeyDown={(e) => { if (e.key === 'Enter') start(); }}
+            value={taskText}
+            onChange={(e) => { setTaskText(e.target.value); setSelectedTask(null); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') void start(); }}
           />
         </div>
 
@@ -390,9 +403,6 @@ export default function TimerPage() {
               projects={projects}
               onChange={refresh}
               onRestart={refresh}
-              editingId={editingId}
-              setEditingId={setEditingId}
-              timeOnly
             />
           ))}
         </div>

@@ -9,15 +9,18 @@ export class ApiError extends Error {
 }
 
 // Domain types (inlined to avoid rootDir issues with shared/types)
+export interface Task {
+  id: number; name: string; project_id: number | null; created_at: string;
+}
 export interface EntryLink { id: number; entry_id: number; url: string; label: string | null; }
 export interface Entry {
-  id: number; project_id: number | null; project_name: string | null;
+  id: number; project_id: number | null; task_id: number | null; project_name: string | null;
   github_repo: string | null; description: string | null;
   started_at: string; ended_at: string | null; duration_seconds: number | null;
   links: EntryLink[]; badges: string[];
 }
 export interface TimerEntry {
-  id: number; project_id: number | null; project_name: string | null;
+  id: number; project_id: number | null; task_id: number | null; project_name: string | null;
   github_repo: string | null; description: string | null; started_at: string;
 }
 export interface Project {
@@ -26,7 +29,7 @@ export interface Project {
 }
 export interface SyncStateRow { source: string; last_synced_at: string | null; last_error: string | null; }
 export interface Plan {
-  id: number; project_id: number | null; project_name: string | null;
+  id: number; project_id: number | null; task_id: number | null; project_name: string | null;
   text: string; position: number; done: 0 | 1; done_at: string | null; created_at: string;
 }
 
@@ -65,7 +68,7 @@ export const api = {
   },
   timer: {
     current: () => request<{ current: TimerEntry | null }>('/timer/current'),
-    start:   (body: { projectId?: number | null; description?: string }) =>
+    start:   (body: { projectId?: number | null; taskId?: number | null; description?: string }) =>
       request<{ current: TimerEntry }>('/timer/start', { method: 'POST', body }),
     stop:    () => request<{ ok: boolean; entryId: number | null; alreadyStopped?: boolean }>(
       '/timer/stop', { method: 'POST' }
@@ -108,13 +111,22 @@ export const api = {
   },
   plans: {
     list:    () => request<{ plans: Plan[] }>('/plans'),
-    create:  (body: { project_id?: number | null; text: string }) =>
+    create:  (body: { project_id?: number | null; task_id?: number | null; text: string }) =>
       request<{ plan: Plan }>('/plans', { method: 'POST', body }),
-    update:  (id: number, body: { done?: boolean; text?: string; project_id?: number | null }) =>
+    update:  (id: number, body: { done?: boolean; text?: string; project_id?: number | null; task_id?: number | null }) =>
       request<{ plan: Plan }>(`/plans/${id}`, { method: 'PATCH', body }),
     reorder: (ids: number[]) =>
       request<{ ok: boolean }>('/plans/reorder', { method: 'PATCH', body: { ids } }),
     remove:  (id: number) =>
       request<{ ok: boolean }>(`/plans/${id}`, { method: 'DELETE' })
+  },
+  tasks: {
+    list:   () => request<{ tasks: Task[] }>('/tasks'),
+    create: (body: { name: string; project_id?: number | null }) =>
+      request<{ task: Task }>('/tasks', { method: 'POST', body }),
+    update: (id: number, body: { name?: string; project_id?: number | null }) =>
+      request<{ task: Task }>(`/tasks/${id}`, { method: 'PATCH', body }),
+    remove: (id: number) =>
+      request<{ ok: boolean }>(`/tasks/${id}`, { method: 'DELETE' })
   }
 };

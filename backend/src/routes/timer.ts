@@ -7,6 +7,7 @@ import { autoLinkPRs } from '../lib/autolink.js';
 interface TimerRow {
   id: number;
   project_id: number | null;
+  task_id: number | null;
   description: string | null;
   started_at: string;
   ended_at: string | null;
@@ -24,17 +25,15 @@ const getOpen = db.prepare<[], TimerRow>(`
   LIMIT 1
 `);
 
-interface InsertParams { projectId: number | null; description: string; startedAt: string; }
+interface InsertParams { projectId: number | null; taskId: number | null; description: string; startedAt: string; }
 const insertEntry = db.prepare<InsertParams>(`
-  INSERT INTO time_entries (project_id, description, started_at)
-  VALUES (@projectId, @description, @startedAt)
+  INSERT INTO time_entries (project_id, task_id, description, started_at)
+  VALUES (@projectId, @taskId, @description, @startedAt)
 `);
 
 interface CloseParams { endedAt: string; duration: number; id: number; }
 const closeEntry = db.prepare<CloseParams>(`
-  UPDATE time_entries
-  SET ended_at = @endedAt, duration_seconds = @duration
-  WHERE id = @id
+  UPDATE time_entries SET ended_at = @endedAt, duration_seconds = @duration WHERE id = @id
 `);
 
 interface CloseAllParams { endedAt: string; }
@@ -53,14 +52,26 @@ export default async function timerRoutes(fastify: FastifyInstance): Promise<voi
     return { current: row ?? null };
   });
 
-  fastify.post<{ Body: { projectId?: number | null; description?: string } }>(
+  fastify.post<{ Body: { projectId?: number | null; taskId?: number | null; description?: string } }>(
     '/start',
     async (req) => {
-      const { projectId = null, description = '' } = req.body;
+      const { projectId = null, taskId = null, description = '' } = req.body;
+
+      let finalDescription = description;
+      if (taskId) {
+        const task = db.prepare<[number], { name: string }>(`SELECT name FROM tasks WHERE id = ?`).get(taskId);
+        if (task) finalDescription = task.name;
+      }
+
       closeAllOpen.run({ endedAt: nowIso() });
-      const result = insertEntry.run({ projectId: projectId ?? null, description, startedAt: nowIso() });
+      const result = insertEntry.run({
+        projectId: projectId ?? null,
+        taskId: taskId ?? null,
+        description: finalDescription,
+        startedAt: nowIso(),
+      });
       const row = db.prepare<[number | bigint], TimerRow>(`
-        SELECT e.*, p.name AS project_name
+        SELECT e.*, p.name AS project_name, p.github_repo
         FROM time_entries e
         LEFT JOIN projects p ON p.id = e.project_id
         WHERE e.id = ?

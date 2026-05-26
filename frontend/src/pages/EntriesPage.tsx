@@ -25,7 +25,6 @@ export default function EntriesPage() {
   const [period, setPeriod] = useState<Period>('week');
   const [entries, setEntries] = useState<Entry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [editingId, setEditingId] = useState<number | null>(null);
   const [allMonthsBack, setAllMonthsBack] = useState(2);
   const [hasMore, setHasMore] = useState(false);
   const [search, setSearch] = useState('');
@@ -132,8 +131,6 @@ export default function EntriesPage() {
                   projects={projects}
                   onChange={refresh}
                   onRestart={() => navigate('/')}
-                  editingId={editingId}
-                  setEditingId={setEditingId}
                 />
               ))}
             </div>

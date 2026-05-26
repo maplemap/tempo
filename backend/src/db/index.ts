@@ -19,5 +19,39 @@ db.exec(schema);
 
 try { db.exec(`ALTER TABLE projects ADD COLUMN github_repo TEXT`); } catch {}
 try { db.exec(`ALTER TABLE projects ADD COLUMN github_base_branch TEXT`); } catch {}
+try { db.exec(`ALTER TABLE time_entries ADD COLUMN task_id INTEGER REFERENCES tasks(id)`); } catch {}
+try { db.exec(`ALTER TABLE plans ADD COLUMN task_id INTEGER REFERENCES tasks(id) ON DELETE SET NULL`); } catch {}
+
+// Backfill: create tasks from unique (description, project_id) pairs in existing entries
+const taskCount = (db.prepare(`SELECT COUNT(*) AS n FROM tasks`).get() as { n: number }).n;
+if (taskCount === 0) {
+  const pairs = db.prepare(`
+    SELECT TRIM(description) AS name, project_id
+    FROM time_entries
+    WHERE description IS NOT NULL AND TRIM(description) != ''
+    GROUP BY LOWER(TRIM(description)), project_id IS NULL, COALESCE(project_id, -1)
+  `).all() as Array<{ name: string; project_id: number | null }>;
+
+  if (pairs.length > 0) {
+    const insertTask  = db.prepare(`INSERT INTO tasks (name, project_id) VALUES (?, ?)`);
+    const linkEntries = db.prepare(`
+      UPDATE time_entries SET task_id = ?
+      WHERE task_id IS NULL AND LOWER(TRIM(description)) = LOWER(?) AND project_id IS ?
+    `);
+    const linkPlans   = db.prepare(`
+      UPDATE plans SET task_id = ?
+      WHERE task_id IS NULL AND LOWER(TRIM(text)) = LOWER(?) AND project_id IS ?
+    `);
+
+    db.transaction(() => {
+      for (const { name, project_id } of pairs) {
+        const { lastInsertRowid: tid } = insertTask.run(name, project_id);
+        linkEntries.run(tid, name, project_id);
+        linkPlans.run(tid, name, project_id);
+      }
+    })();
+    console.log(`[db] backfilled ${pairs.length} tasks from existing entries`);
+  }
+}
 
 console.log(`[db] using ${dbFile}`);
