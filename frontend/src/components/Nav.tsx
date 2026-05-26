@@ -15,9 +15,15 @@ export default function Nav() {
   const location = useLocation();
 
   useEffect(() => {
-    api.timer.current()
-      .then(({ current }) => setCurrent(current))
-      .catch(() => setCurrent(null));
+    let cancelled = false;
+    const fetch = () =>
+      api.timer.current()
+        .then(({ current }) => { if (!cancelled) setCurrent(current); })
+        .catch(() => { if (!cancelled) setCurrent(null); });
+
+    fetch();
+    const id = setInterval(fetch, 5000);
+    return () => { cancelled = true; clearInterval(id); };
   }, [location.pathname]);
 
   const tooltip = current
