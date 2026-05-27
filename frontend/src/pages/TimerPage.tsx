@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Entry, Project, Task, TimerEntry } from '../lib/api';
-import { fmtClock, fmtDate, fmtDuration, fmtDayHeader, fmtTimeHM, isoDateKey, rangeLastNDays } from '../lib/time';
+import { fmtClock, fmtDate, fmtDuration, fmtDayHeader, fmtTimeHM, isoDateKey, rangeLastNDays, normalizeTimeInput } from '../lib/time';
 import EntryItem from '../components/EntryItem';
 import { renderDescription } from '../lib/renderDescription';
 
@@ -219,7 +219,13 @@ export default function TimerPage() {
 
   async function saveStartTime() {
     if (!current) return;
-    const newStartedAt = applyTimeInput(startDraft, current.started_at);
+    const norm = normalizeTimeInput(startDraft);
+    if (!norm) {
+      setStartError('! invalid time');
+      return;
+    }
+    if (norm !== startDraft) setStartDraft(norm);
+    const newStartedAt = applyTimeInput(norm, current.started_at);
     if (new Date(newStartedAt).getTime() > Date.now()) {
       setStartError('! start time cannot be in the future');
       return;

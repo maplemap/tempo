@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api';
-import { fmtDuration } from '../lib/time';
+import { fmtDuration, normalizeTimeInput } from '../lib/time';
 import ConfirmInline from './ConfirmInline';
 import type { Entry, Project } from '../lib/api';
 
@@ -50,9 +50,22 @@ export default function EntryItem({
   }
 
   async function saveTime() {
-    const startedAt = applyTimeInput(startText, entry.started_at);
-    const endedAt = endText
-      ? applyTimeInput(endText, entry.ended_at ?? entry.started_at)
+    const normStart = normalizeTimeInput(startText);
+    const normEnd = endText ? normalizeTimeInput(endText) : null;
+
+    if (!normStart || (endText && normEnd === null)) {
+      showError('! invalid time');
+      setStartText(toTimeInput(entry.started_at));
+      setEndText(toTimeInput(entry.ended_at));
+      return;
+    }
+
+    if (normStart !== startText) setStartText(normStart);
+    if (endText && normEnd && normEnd !== endText) setEndText(normEnd);
+
+    const startedAt = applyTimeInput(normStart, entry.started_at);
+    const endedAt = normEnd
+      ? applyTimeInput(normEnd, entry.ended_at ?? entry.started_at)
       : entry.ended_at;
     if (endedAt && new Date(endedAt) <= new Date(startedAt)) {
       showError('! end must be after start');
