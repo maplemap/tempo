@@ -24,7 +24,7 @@ test('review keywords', () => {
 test('bug keywords', () => {
   assert.equal(categorize('fix login redirect bug'), 'bug');
   assert.equal(categorize('hotfix for timer'), 'bug');
-  assert.equal(categorize('виправити помилку'), 'bug');
+  assert.equal(categorize('баг помилку'), 'bug');
 });
 
 test('refactor keywords', () => {

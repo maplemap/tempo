@@ -6,8 +6,8 @@ const RULES: Array<{ category: Category; patterns: RegExp[] }> = [
   {
     category: 'daily',
     patterns: [
-      /\b(daily|standup|stand-up|sync|cr)\b/iu,
-      /(mitинг|мітинг|дейлі|дейли|синк)/iu,
+      /\b(daily|standup|stand-up|sync)\b/iu,
+      /(митинг|мітинг|дейлі|дейли|синк)/iu,
     ],
   },
   {
@@ -23,7 +23,7 @@ const RULES: Array<{ category: Category; patterns: RegExp[] }> = [
     category: 'bug',
     patterns: [
       /\b(bug|fix|fixing|fixed|hotfix|issue|defect)\b/iu,
-      /(помилка|баг|фікс|фіксити|регрес|виправити)/iu,
+      /(помилка|баг|фікс|фіксити|регрес)/iu,
     ],
   },
   {
