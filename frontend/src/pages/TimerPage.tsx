@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Entry, Project, Task, TimerEntry } from '../lib/api';
-import { fmtClock, fmtDate, fmtDuration, fmtDayHeader, fmtTimeHM, isoDateKey, rangeLastNDays, normalizeTimeInput } from '../lib/time';
+import { fmtClock, fmtDate, fmtDuration, fmtDayHeader, isoDateKey, rangeLastNDays, normalizeTimeInput } from '../lib/time';
 import EntryItem from '../components/EntryItem';
 import { renderDescription } from '../lib/renderDescription';
 
@@ -51,20 +51,16 @@ const LAST_PROJECT_KEY = 'tempo:lastProjectId';
 
 interface PastDaySectionProps {
   entries: Entry[];
+  projects: Project[];
   collapsed: boolean;
   onToggle: () => void;
-  onRestart: () => void;
+  onRefresh: () => void;
 }
 
-function PastDaySection({ entries, collapsed, onToggle, onRestart }: PastDaySectionProps) {
+function PastDaySection({ entries, projects, collapsed, onToggle, onRefresh }: PastDaySectionProps) {
   if (entries.length === 0) return null;
 
   const totalSec = entries.reduce((s, e) => s + (e.duration_seconds ?? 0), 0);
-
-  async function restart(entry: Entry) {
-    await api.timer.start({ projectId: entry.project_id, description: entry.description ?? '' });
-    onRestart();
-  }
 
   return (
     <>
@@ -85,17 +81,13 @@ function PastDaySection({ entries, collapsed, onToggle, onRestart }: PastDaySect
       {!collapsed && (
         <div className="entries">
           {entries.map((e) => (
-            <div key={e.id} className="entry-row" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="proj">{e.project_name ?? '—'}</span>
-              <span className="desc" style={{ flex: 1 }}>{e.description ?? ''}</span>
-              <span className="entry-actions">
-                <button
-                  className="btn icon-btn"
-                  onClick={() => restart(e)}
-                  title="Restart this task"
-                >[ ▶ ]</button>
-              </span>
-            </div>
+            <EntryItem
+              key={e.id}
+              entry={e}
+              projects={projects}
+              onChange={onRefresh}
+              onRestart={onRefresh}
+            />
           ))}
         </div>
       )}
@@ -414,9 +406,10 @@ export default function TimerPage() {
           <PastDaySection
             key={key}
             entries={pastDayMap.get(key)!}
+            projects={projects}
             collapsed={!expandedDays.has(key)}
             onToggle={() => toggleDay(key)}
-            onRestart={refresh}
+            onRefresh={refresh}
           />
         ))}
       </div>
