@@ -220,7 +220,7 @@ Expected: FAIL — `Cannot find module './categorize.js'` or similar import erro
 Create `backend/src/lib/categorize.ts`:
 
 ```ts
-import type { Category } from '../../../shared/types/category.js';
+import type { Category } from '../lib/categorize.js';
 
 // Order matters: first match wins.
 // Priority — Daily > Review > Bug > Refactor > Task (default).
@@ -385,7 +385,7 @@ Add at the top with the other imports:
 
 ```ts
 import { categorizeEntry } from '../lib/categorize.js';
-import type { Category } from '../../../shared/types/category.js';
+import type { Category } from '../lib/categorize.js';
 ```
 
 Replace the existing `insertEntry` prepared statement (currently around lines 28–32) and its `interface InsertParams` with:
@@ -509,7 +509,7 @@ Add at the top with the other imports:
 
 ```ts
 import { categorizeEntry } from '../lib/categorize.js';
-import type { Category } from '../../../shared/types/category.js';
+import type { Category } from '../lib/categorize.js';
 ```
 
 Extend the `DbEntry` interface (lines 7–17) to include the new columns:
@@ -640,7 +640,7 @@ git commit -m "feat(entries): re-categorize on description/task change"
 In `backend/src/routes/entries.ts`, add a new import at the top:
 
 ```ts
-import { isCategory } from '../../../shared/types/category.js';
+import { isCategory } from '../lib/categorize.js';
 ```
 
 Then add the new route inside the `export default async function entryRoutes(…)` body, alongside the other routes (e.g. just after the existing `fastify.delete('/:id', …)` handler):
@@ -738,7 +738,7 @@ Modify `backend/src/routes/stats.ts`.
 Add at the top with the other imports:
 
 ```ts
-import type { Category } from '../../../shared/types/category.js';
+import type { Category } from '../lib/categorize.js';
 ```
 
 Add a new prepared statement near the other `db.prepare(...)` calls (e.g. after `eventsInRange`):
