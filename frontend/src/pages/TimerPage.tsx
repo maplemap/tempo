@@ -288,6 +288,9 @@ export default function TimerPage() {
 
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const todayEntries = entries.filter((e) => isoDateKey(e.started_at) === todayKey);
+  const todayCompletedSec = todayEntries.reduce((s, e) => s + (e.duration_seconds || 0), 0);
+  const currentTodaySec = current && isoDateKey(current.started_at) === todayKey ? elapsedSec : 0;
+  const todayTotalSec = todayCompletedSec + currentTodaySec;
 
   const pastDayMap = new Map<string, Entry[]>();
   for (const e of entries) {
@@ -337,6 +340,11 @@ export default function TimerPage() {
 
         <button className="btn" onClick={stop}>[ STOP ]</button>
         <div className="hint">press space to stop</div>
+
+        <div className="running-today">
+          <span className="running-today-label">today</span>
+          <span className="running-today-value">{fmtDuration(todayTotalSec)}</span>
+        </div>
       </div>
     );
   }
@@ -389,7 +397,7 @@ export default function TimerPage() {
         <div className="spread">
           <span className="section-title">Today</span>
           <span className="muted" style={{ fontSize: 12 }}>
-            {fmtDuration(todayEntries.reduce((s, e) => s + (e.duration_seconds || 0), 0))}
+            {fmtDuration(todayCompletedSec)}
             {' · '}{todayEntries.length} entries
           </span>
         </div>

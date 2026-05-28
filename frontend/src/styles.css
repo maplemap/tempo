@@ -418,6 +418,30 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   margin-bottom: 24px;
 }
 
+.running .running-today {
+  position: absolute;
+  bottom: 40px;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.running .running-today-label {
+  font-size: 16px;
+  opacity: 0.5;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.running .running-today-value {
+  font-size: 23px;
+  opacity: 0.85;
+  letter-spacing: 0.02em;
+}
+
 .running .running-started:hover,
 .running .running-started:focus-within {
   opacity: 1;
