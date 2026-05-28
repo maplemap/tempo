@@ -415,11 +415,11 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   opacity: 0.5;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  cursor: pointer;
   margin-bottom: 24px;
 }
 
-.running .running-started:hover {
+.running .running-started:hover,
+.running .running-started:focus-within {
   opacity: 1;
 }
 
@@ -432,19 +432,25 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   margin-bottom: 16px;
 }
 
-.running .start-edit-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.running .start-inline-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  color: inherit;
+  font: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  width: 7ch;
+  padding: 0;
+  outline: none;
+  cursor: text;
+  text-align: center;
 }
 
-.running .start-edit-input {
-  background: transparent;
-  color: var(--inv-fg);
-  border-color: var(--inv-fg);
-  width: auto;
-  font-size: 13px;
-  padding: 2px 6px;
+.running .start-inline-input:hover,
+.running .start-inline-input:focus {
+  border-bottom-color: currentColor;
 }
 
 .running .start-error {

@@ -113,11 +113,12 @@ export default function TimerPage() {
   const [taskText, setTaskText] = useState('');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [tick, setTick] = useState(0);
-  const [editingStart, setEditingStart] = useState(false);
   const [startDraft, setStartDraft] = useState('');
   const [startError, setStartError] = useState<string | null>(null);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const startedAtRef = useRef<number | null>(null);
+  const skipBlurSave = useRef(false);
+  const startInputFocused = useRef(false);
 
   function toggleDay(key: string) {
     setExpandedDays((prev) => {
@@ -198,6 +199,11 @@ export default function TimerPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!current || startInputFocused.current) return;
+    setStartDraft(toTimeInput(current.started_at));
+  }, [current]);
+
   function toTimeInput(iso: string): string {
     const d = new Date(iso);
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -208,13 +214,6 @@ export default function TimerPage() {
     const [h, m] = hhmm.split(':').map(Number);
     d.setHours(h, m, 0, 0);
     return d.toISOString();
-  }
-
-  function openStartEdit() {
-    if (!current) return;
-    setStartDraft(toTimeInput(current.started_at));
-    setStartError(null);
-    setEditingStart(true);
   }
 
   async function saveStartTime() {
@@ -234,7 +233,6 @@ export default function TimerPage() {
       await api.entries.update(current.id, { started_at: newStartedAt });
       startedAtRef.current = new Date(newStartedAt).getTime();
       setCurrent({ ...current, started_at: newStartedAt });
-      setEditingStart(false);
     } catch (e) {
       setStartError(`! ${(e as Error).message}`);
     }
@@ -310,31 +308,31 @@ export default function TimerPage() {
         <div className="running-proj">{current.project_name || 'no project'}</div>
 
         <div className="start-wrap">
-          {editingStart ? (
-            <>
-              <div className="start-edit-row">
-                <input
-                  type="text"
-                  className="input start-edit-input"
-                  placeholder="HH:MM"
-                  value={startDraft}
-                  autoFocus
-                  onChange={(e) => { setStartDraft(e.target.value); setStartError(null); }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') { e.preventDefault(); saveStartTime(); }
-                    if (e.key === 'Escape') setEditingStart(false);
-                  }}
-                />
-                <button className="btn" onClick={saveStartTime}>[ SAVE ]</button>
-                <button className="btn" onClick={() => setEditingStart(false)}>[ CANCEL ]</button>
-              </div>
-              {startError && <div className="start-error">{startError}</div>}
-            </>
-          ) : (
-            <div className="running-started" onClick={openStartEdit}>
-              started {fmtTimeHM(current.started_at)}
-            </div>
-          )}
+          <div className="running-started">
+            started{' '}
+            <input
+              type="text"
+              className="start-inline-input"
+              value={startDraft}
+              size={5}
+              onChange={(e) => { setStartDraft(e.target.value); setStartError(null); }}
+              onFocus={() => { startInputFocused.current = true; }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); void saveStartTime(); }
+                if (e.key === 'Escape') {
+                  skipBlurSave.current = true;
+                  setStartDraft(toTimeInput(current.started_at));
+                  (e.target as HTMLInputElement).blur();
+                }
+              }}
+              onBlur={() => {
+                startInputFocused.current = false;
+                if (skipBlurSave.current) { skipBlurSave.current = false; return; }
+                void saveStartTime();
+              }}
+            />
+          </div>
+          {startError && <div className="start-error">{startError}</div>}
         </div>
 
         <button className="btn" onClick={stop}>[ STOP ]</button>
