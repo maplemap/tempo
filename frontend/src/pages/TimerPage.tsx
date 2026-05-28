@@ -108,6 +108,7 @@ export default function TimerPage() {
   const [startDraft, setStartDraft] = useState('');
   const [startError, setStartError] = useState<string | null>(null);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const [today, setToday] = useState(() => new Date());
   const startedAtRef = useRef<number | null>(null);
   const skipBlurSave = useRef(false);
   const startInputFocused = useRef(false);
@@ -190,6 +191,13 @@ export default function TimerPage() {
       clearFavicon();
     };
   }, []);
+
+  useEffect(() => {
+    const now = today;
+    const msToMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime() - now.getTime();
+    const id = setTimeout(() => { setToday(new Date()); void refresh(); }, msToMidnight);
+    return () => clearTimeout(id);
+  }, [today]);
 
   useEffect(() => {
     if (!current || startInputFocused.current) return;
@@ -278,7 +286,7 @@ export default function TimerPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [current, projectId, selectedTask]);
 
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const todayEntries = entries.filter((e) => isoDateKey(e.started_at) === todayKey);
 
   const pastDayMap = new Map<string, Entry[]>();
@@ -338,7 +346,7 @@ export default function TimerPage() {
       <div>
         <div className="hd">
           <div className="brand">TEMPO</div>
-          <div className="meta">{fmtDate()}</div>
+          <div className="meta">{fmtDate(today)}</div>
         </div>
         <hr className="rule" />
 
