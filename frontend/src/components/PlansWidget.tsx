@@ -242,7 +242,7 @@ export default function PlansWidget() {
         <div className="plans-panel">
           <div className="plans-panel-header">
             <span className="plans-panel-title">
-              PLANS&nbsp;
+              BACKLOG&nbsp;
               <span className="plans-panel-count">
                 {openCount} open{doneCount > 0 ? ` · ${doneCount} done` : ''}
               </span>
@@ -261,7 +261,7 @@ export default function PlansWidget() {
             <AddRow
               projects={projects}
               tasks={tasks}
-              onAdd={(plan) => setPlans((prev) => [...prev, plan])}
+              onAdd={(plan) => setPlans((prev) => [plan, ...prev])}
               onTasksChange={setTasks}
             />
 
@@ -300,7 +300,7 @@ export default function PlansWidget() {
         className={`btn icon-btn plans-trigger${open ? ' active' : ''}`}
         onClick={() => setOpen((v) => !v)}
       >
-        [ plans{openCount > 0 ? ` · ${openCount}` : ''} ]
+        [ backlog{openCount > 0 ? ` · ${openCount}` : ''} ]
       </button>
     </div>
   );
