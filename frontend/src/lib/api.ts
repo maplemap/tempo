@@ -12,11 +12,15 @@ export class ApiError extends Error {
 export interface Task {
   id: number; name: string; project_id: number | null; created_at: string;
 }
+export type Category = 'review' | 'bug' | 'refactor' | 'task' | 'daily';
+export const CATEGORIES: Category[] = ['review', 'bug', 'refactor', 'task', 'daily'];
 export interface EntryLink { id: number; entry_id: number; url: string; label: string | null; }
 export interface Entry {
   id: number; project_id: number | null; task_id: number | null; project_name: string | null;
   github_repo: string | null; description: string | null;
   started_at: string; ended_at: string | null; duration_seconds: number | null;
+  category: Category;
+  category_manual: 0 | 1;
   links: EntryLink[]; badges: string[];
 }
 export interface TimerEntry {
@@ -31,6 +35,26 @@ export interface SyncStateRow { source: string; last_synced_at: string | null; l
 export interface Plan {
   id: number; project_id: number | null; task_id: number | null; project_name: string | null;
   text: string; position: number; done: 0 | 1; done_at: string | null; created_at: string;
+}
+export interface ByCategoryStats {
+  range: { from: string; to: string };
+  total: number;
+  categories: Array<{
+    category: Category;
+    total: number;
+    tasks: Array<{
+      task_id: number | null;
+      task_name: string | null;
+      total: number;
+      entries: Array<{
+        id: number;
+        started_at: string;
+        ended_at: string | null;
+        duration_seconds: number;
+        description: string | null;
+      }>;
+    }>;
+  }>;
 }
 
 interface RequestOptions extends Omit<RequestInit, 'body'> {
@@ -86,7 +110,9 @@ export const api = {
     addLink: (id: number, body: { url: string; label?: string }) =>
       request<{ entry: Entry }>(`/entries/${id}/links`, { method: 'POST', body }),
     removeLink: (id: number, linkId: number) =>
-      request<{ entry: Entry }>(`/entries/${id}/links/${linkId}`, { method: 'DELETE' })
+      request<{ entry: Entry }>(`/entries/${id}/links/${linkId}`, { method: 'DELETE' }),
+    setCategory: (id: number, category: Category | null) =>
+      request<{ entry: Entry }>(`/entries/${id}/category`, { method: 'PATCH', body: { category } })
   },
   projects: {
     list:   ()                    => request<{ projects: Project[] }>('/projects'),
@@ -100,6 +126,10 @@ export const api = {
     get: (params: Record<string, string> = {}) => {
       const qs = new URLSearchParams(params).toString();
       return request(`/stats${qs ? `?${qs}` : ''}`);
+    },
+    byCategory: (params: Record<string, string> = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return request<ByCategoryStats>(`/stats/by-category${qs ? `?${qs}` : ''}`);
     }
   },
   sync: {
