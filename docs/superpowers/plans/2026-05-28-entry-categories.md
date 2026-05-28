@@ -109,10 +109,12 @@ export interface TimerEntry {
 Run from project root:
 
 ```bash
-cd backend && npm run typecheck && cd ../frontend && npm run typecheck && cd ..
+cd backend && npm run typecheck && cd ../frontend && npx tsc --noEmit && cd ..
 ```
 
 Expected: PASS in both (the frontend `api.ts` inlines its own `Entry` copy, so it won't fail yet; we update that copy in Task 8). If the frontend typecheck reports unrelated errors, ignore — only the lines you changed must pass.
+
+Note: backend has `npm run typecheck`; frontend doesn't — use `npx tsc --noEmit` for frontend everywhere in this plan.
 
 - [ ] **Step 5: Commit**
 
@@ -941,7 +943,7 @@ byCategory: (params: Record<string, string> = {}) => {
 - [ ] **Step 2: Typecheck**
 
 ```bash
-cd frontend && npm run typecheck
+cd frontend && npx tsc --noEmit
 ```
 
 Expected: PASS (any errors should be in files we're about to touch in later tasks — list them but don't fix here).
@@ -1057,7 +1059,7 @@ Notes:
 - [ ] **Step 2: Typecheck**
 
 ```bash
-cd frontend && npm run typecheck
+cd frontend && npx tsc --noEmit
 ```
 
 Expected: PASS.
@@ -1122,7 +1124,7 @@ Add the badge between them:
 - [ ] **Step 2: Typecheck**
 
 ```bash
-cd frontend && npm run typecheck
+cd frontend && npx tsc --noEmit
 ```
 
 Expected: PASS.
@@ -1265,7 +1267,7 @@ In the JSX, insert a new section between the existing "By project" section and t
 - [ ] **Step 2: Typecheck**
 
 ```bash
-cd frontend && npm run typecheck
+cd frontend && npx tsc --noEmit
 ```
 
 Expected: PASS.
@@ -1313,7 +1315,7 @@ With both servers running and signed in:
 - [ ] **Step 2: Run a final typecheck on both packages**
 
 ```bash
-cd backend && npm run typecheck && cd ../frontend && npm run typecheck && cd ..
+cd backend && npm run typecheck && cd ../frontend && npx tsc --noEmit && cd ..
 ```
 
 Expected: PASS in both.
