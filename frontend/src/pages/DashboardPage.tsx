@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import type { ByCategoryStats } from '../lib/api';
 import { rangeForPeriod, fmtDuration } from '../lib/time';
 import AsciiBar from '../components/AsciiBar';
 
@@ -23,10 +24,33 @@ const periods: Array<{ key: Period; label: string }> = [
 export default function DashboardPage() {
   const [period, setPeriod] = useState<Period>('week');
   const [stats, setStats] = useState<StatsData | null>(null);
+  const [byCategory, setByCategory] = useState<ByCategoryStats | null>(null);
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    api.stats.get(rangeForPeriod(period)).then((data) => setStats(data as StatsData));
+    const range = rangeForPeriod(period);
+    api.stats.get(range).then((data) => setStats(data as StatsData));
+    api.stats.byCategory(range).then((data) => setByCategory(data));
+    setExpandedCats(new Set());
+    setExpandedTasks(new Set());
   }, [period]);
+
+  function toggleCat(c: string) {
+    setExpandedCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(c)) next.delete(c); else next.add(c);
+      return next;
+    });
+  }
+
+  function toggleTask(key: string) {
+    setExpandedTasks((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
 
   if (!stats) return null;
 
@@ -68,6 +92,64 @@ export default function DashboardPage() {
           <span className="muted">{Math.round((row.total / stats.total) * 100) || 0}%</span>
         </div>
       ))}
+
+      {byCategory && byCategory.categories.length > 0 && (
+        <>
+          <hr className="rule" />
+          <div className="section-title">By category</div>
+          {byCategory.categories.map((cat) => {
+            const ratio = byCategory.total > 0 ? cat.total / byCategory.total : 0;
+            const pct = Math.round(ratio * 100);
+            const open = expandedCats.has(cat.category);
+            return (
+              <div key={cat.category}>
+                <div
+                  className="dash-row"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => toggleCat(cat.category)}
+                >
+                  <span className="name">{open ? '▾' : '▸'} [{cat.category}]</span>
+                  <span>{fmtDuration(cat.total)}</span>
+                  <AsciiBar ratio={ratio} />
+                  <span className="muted">{pct}%</span>
+                </div>
+                {open && cat.tasks.map((t) => {
+                  const taskKey = `${cat.category}:${t.task_id ?? 'null'}`;
+                  const taskOpen = expandedTasks.has(taskKey);
+                  return (
+                    <div key={taskKey} style={{ marginLeft: 16 }}>
+                      <div
+                        className="dash-row"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => toggleTask(taskKey)}
+                      >
+                        <span className="name">{taskOpen ? '▾' : '▸'} {t.task_name ?? '(no task)'}</span>
+                        <span>{fmtDuration(t.total)}</span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                      {taskOpen && t.entries.map((e) => (
+                        <div key={e.id} style={{ marginLeft: 32, fontSize: 12 }} className="dash-row">
+                          <span className="muted">
+                            {new Date(e.started_at).toLocaleString(undefined, {
+                              weekday: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                          <span>{fmtDuration(e.duration_seconds)}</span>
+                          <span className="name">{e.description ?? '(no description)'}</span>
+                          <span></span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </>
+      )}
 
       <hr className="rule" />
 
