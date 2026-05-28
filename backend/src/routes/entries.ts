@@ -3,6 +3,8 @@ import { db } from '../db/index.js';
 import { requireAuth } from '../lib/auth.js';
 import { diffSeconds, parseRange } from '../lib/time.js';
 import { autoLinkPRs } from '../lib/autolink.js';
+import { categorizeEntry } from '../lib/categorize.js';
+import type { Category } from '../lib/categorize.js';
 
 interface DbEntry {
   id: number;
@@ -12,6 +14,8 @@ interface DbEntry {
   started_at: string;
   ended_at: string | null;
   duration_seconds: number | null;
+  category: Category;
+  category_manual: 0 | 1;
   project_name: string | null;
   github_repo: string | null;
 }
@@ -144,14 +148,27 @@ export default async function entryRoutes(fastify: FastifyInstance): Promise<voi
     const endedAt = next.ended_at;
 
     if (endedAt && new Date(endedAt) <= new Date(startedAt)) {
-      reply.code(400).send({ error: 'ended_at must be after started_at' }); return;
+      reply.code(400).send({ error: 'ended_at must be after start' }); return;
     }
 
     const duration = endedAt ? diffSeconds(startedAt, endedAt) : null;
 
+    // Recompute category only if not manually overridden AND description/task_id changed.
+    let nextCategory: Category = current.category;
+    if (!current.category_manual) {
+      const descriptionChanged = next.description !== current.description;
+      const taskChanged = next.task_id !== current.task_id;
+      if (descriptionChanged || taskChanged) {
+        const task = next.task_id
+          ? db.prepare<[number], { name: string }>(`SELECT name FROM tasks WHERE id = ?`).get(next.task_id)
+          : null;
+        nextCategory = categorizeEntry(task?.name ?? null, next.description ?? null);
+      }
+    }
+
     db.prepare<{
       id: number; project_id: number | null; task_id: number | null; description: string;
-      started_at: string; ended_at: string | null; duration_seconds: number | null;
+      started_at: string; ended_at: string | null; duration_seconds: number | null; category: Category;
     }>(`
       UPDATE time_entries
       SET project_id = @project_id,
@@ -159,7 +176,8 @@ export default async function entryRoutes(fastify: FastifyInstance): Promise<voi
           description = @description,
           started_at = @started_at,
           ended_at = @ended_at,
-          duration_seconds = @duration_seconds
+          duration_seconds = @duration_seconds,
+          category = @category
       WHERE id = @id
     `).run({
       id: current.id,
@@ -168,7 +186,8 @@ export default async function entryRoutes(fastify: FastifyInstance): Promise<voi
       description: next.description ?? '',
       started_at: startedAt,
       ended_at: endedAt ?? null,
-      duration_seconds: duration
+      duration_seconds: duration,
+      category: nextCategory,
     });
 
     const saved = getEntry.get(current.id);
