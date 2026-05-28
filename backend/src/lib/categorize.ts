@@ -1,4 +1,13 @@
-import type { Category } from '../../../shared/types/category.js';
+// Mirror of shared/types/category.ts — kept inline because backend tsconfig
+// rootDir is `src` and cannot import from `../shared`. Keep in sync with
+// `shared/types/category.ts` and `frontend/src/lib/api.ts`.
+export type Category = 'review' | 'bug' | 'refactor' | 'task' | 'daily';
+
+export const CATEGORIES: Category[] = ['review', 'bug', 'refactor', 'task', 'daily'];
+
+export function isCategory(value: unknown): value is Category {
+  return typeof value === 'string' && (CATEGORIES as string[]).includes(value);
+}
 
 // Order matters: first match wins.
 // Priority — Daily > Review > Bug > Refactor > Task (default).
