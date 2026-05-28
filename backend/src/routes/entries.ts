@@ -3,7 +3,7 @@ import { db } from '../db/index.js';
 import { requireAuth } from '../lib/auth.js';
 import { diffSeconds, parseRange } from '../lib/time.js';
 import { autoLinkPRs } from '../lib/autolink.js';
-import { categorizeEntry } from '../lib/categorize.js';
+import { categorizeEntry, isCategory } from '../lib/categorize.js';
 import type { Category } from '../lib/categorize.js';
 
 interface DbEntry {
@@ -202,6 +202,35 @@ export default async function entryRoutes(fastify: FastifyInstance): Promise<voi
     deleteEntry.run(req.params.id);
     return { ok: true };
   });
+
+  fastify.patch<{ Params: { id: string }; Body: { category?: unknown } }>(
+    '/:id/category',
+    async (req, reply) => {
+      const current = getEntry.get(req.params.id);
+      if (!current) { reply.code(404).send({ error: 'not found' }); return; }
+
+      const value = req.body?.category;
+
+      if (value === null) {
+        // Reset to auto: recompute from current task name + description.
+        const task = current.task_id
+          ? db.prepare<[number], { name: string }>(`SELECT name FROM tasks WHERE id = ?`).get(current.task_id)
+          : null;
+        const auto = categorizeEntry(task?.name ?? null, current.description);
+        db.prepare(`UPDATE time_entries SET category = ?, category_manual = 0 WHERE id = ?`)
+          .run(auto, current.id);
+      } else if (isCategory(value)) {
+        db.prepare(`UPDATE time_entries SET category = ?, category_manual = 1 WHERE id = ?`)
+          .run(value, current.id);
+      } else {
+        reply.code(400).send({ error: 'invalid category' });
+        return;
+      }
+
+      const final = getEntry.get(current.id);
+      return { entry: final ? hydrate(final) : null };
+    }
+  );
 
   fastify.post<{ Params: { id: string }; Body: { url?: string; label?: string } }>(
     '/:id/links',
