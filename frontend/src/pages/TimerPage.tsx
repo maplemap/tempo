@@ -32,7 +32,7 @@ function drawFavicon(minutes: number | null): void {
   ctx.closePath();
   ctx.fill();
 
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = '#1a1616';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
@@ -41,7 +41,7 @@ function drawFavicon(minutes: number | null): void {
     ctx.fillText('T', s / 2, s / 2 + 2);
   } else {
     const label = minutes < 100 ? String(minutes) : '99+';
-    ctx.font = `bold ${label.length > 2 ? 22 : 34}px monospace`;
+    ctx.font = `bold ${label.length > 2 ? 28 : 42}px monospace`;
     ctx.fillText(label, s / 2, s / 2 + 2);
   }
 
