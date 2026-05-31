@@ -18,7 +18,7 @@ function drawFavicon(minutes: number | null): void {
   const r = FAVICON_CORNER;
 
   // Rounded square background
-  ctx.fillStyle = minutes !== null ? '#f59e0b' : '#1a1a1a';
+  ctx.fillStyle = minutes !== null ? '#fe5f33' : '#1a1a1a';
   ctx.beginPath();
   ctx.moveTo(r, 0);
   ctx.lineTo(s - r, 0);
@@ -32,7 +32,7 @@ function drawFavicon(minutes: number | null): void {
   ctx.closePath();
   ctx.fill();
 
-  ctx.fillStyle = '#1a1616';
+  ctx.fillStyle = '#f9f9f9';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
@@ -41,7 +41,7 @@ function drawFavicon(minutes: number | null): void {
     ctx.fillText('T', s / 2, s / 2 + 2);
   } else {
     const label = minutes < 100 ? String(minutes) : '99+';
-    ctx.font = `bold ${label.length > 2 ? 28 : 42}px monospace`;
+    ctx.font = `bold ${label.length > 2 ? 28 : 38}px monospace`;
     ctx.fillText(label, s / 2, s / 2 + 2);
   }
 
