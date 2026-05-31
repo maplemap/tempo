@@ -128,16 +128,6 @@ export default async function entryRoutes(fastify: FastifyInstance): Promise<voi
       category: nextCategory,
     });
 
-    // Bulk rename: update all other entries with the same old description
-    if (next.description !== current.description && next.description && current.description) {
-      const newCat = categorizeEntry(next.description);
-      db.prepare(`
-        UPDATE time_entries
-        SET description = ?,
-            category = CASE WHEN category_manual = 0 THEN ? ELSE category END
-        WHERE id != ? AND LOWER(TRIM(description)) = LOWER(TRIM(?))
-      `).run(next.description, newCat, current.id, current.description);
-    }
 
     const saved = getEntry.get(current.id);
     if (saved) await autoLinkPRs(current.id, saved.description, saved.github_repo).catch(() => {});
