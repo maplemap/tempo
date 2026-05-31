@@ -9,7 +9,6 @@ import type { Category } from '../lib/categorize.js';
 interface TimerRow {
   id: number;
   project_id: number | null;
-  task_id: number | null;
   description: string | null;
   started_at: string;
   ended_at: string | null;
@@ -29,14 +28,13 @@ const getOpen = db.prepare<[], TimerRow>(`
 
 interface InsertParams {
   projectId: number | null;
-  taskId: number | null;
   description: string;
   startedAt: string;
   category: Category;
 }
 const insertEntry = db.prepare<InsertParams>(`
-  INSERT INTO time_entries (project_id, task_id, description, started_at, category, category_manual)
-  VALUES (@projectId, @taskId, @description, @startedAt, @category, 0)
+  INSERT INTO time_entries (project_id, description, started_at, category, category_manual)
+  VALUES (@projectId, @description, @startedAt, @category, 0)
 `);
 
 interface CloseParams { endedAt: string; duration: number; id: number; }
@@ -60,29 +58,16 @@ export default async function timerRoutes(fastify: FastifyInstance): Promise<voi
     return { current: row ?? null };
   });
 
-  fastify.post<{ Body: { projectId?: number | null; taskId?: number | null; description?: string } }>(
+  fastify.post<{ Body: { projectId?: number | null; description?: string } }>(
     '/start',
     async (req) => {
-      const { projectId = null, taskId = null, description = '' } = req.body;
-
-      let finalDescription = description;
-      let taskName: string | null = null;
-      if (taskId) {
-        const task = db.prepare<[number], { name: string }>(
-          `SELECT name FROM tasks WHERE id = ?`
-        ).get(taskId);
-        if (task) {
-          taskName = task.name;
-          finalDescription = task.name;
-        }
-      }
-      const category = categorizeEntry(taskName, finalDescription);
+      const { projectId = null, description = '' } = req.body;
+      const category = categorizeEntry(description);
 
       closeAllOpen.run({ endedAt: nowIso() });
       const result = insertEntry.run({
         projectId: projectId ?? null,
-        taskId: taskId ?? null,
-        description: finalDescription,
+        description,
         startedAt: nowIso(),
         category,
       });
