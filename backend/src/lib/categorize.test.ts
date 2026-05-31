@@ -60,9 +60,9 @@ test('word boundaries: buggy is not bug', () => {
   assert.equal(categorize('buggy whip era'), 'task');
 });
 
-test('categorizeEntry combines task name and description', () => {
-  assert.equal(categorizeEntry('Login refactor', null), 'refactor');
-  assert.equal(categorizeEntry('Login refactor', 'fix login redirect bug'), 'bug');
-  assert.equal(categorizeEntry(null, null), 'task');
-  assert.equal(categorizeEntry('', ''), 'task');
+test('categorizeEntry uses description only', () => {
+  assert.equal(categorizeEntry('Login refactor'), 'refactor');
+  assert.equal(categorizeEntry('fix login redirect bug'), 'bug');
+  assert.equal(categorizeEntry(null), 'task');
+  assert.equal(categorizeEntry(''), 'task');
 });
