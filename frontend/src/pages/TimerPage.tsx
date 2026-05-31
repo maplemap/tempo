@@ -392,9 +392,7 @@ export default function TimerPage() {
           />
         </div>
 
-        <hr className="rule" />
-
-        <div className="spread">
+        <div className="spread" style={{marginTop: "30px"}}>
           <span className="section-title">Today</span>
           <span className="muted" style={{ fontSize: 12 }}>
             {fmtDuration(todayCompletedSec)}
