@@ -94,11 +94,7 @@ export default function EntryItem({
     if (!trimmed) { setDescription(entry.description ?? ''); return; }
     if (trimmed === (entry.description ?? '')) return;
     try {
-      if (entry.task_id) {
-        await api.tasks.update(entry.task_id, { name: trimmed });
-      } else {
-        await api.entries.update(entry.id, { description: trimmed });
-      }
+      await api.entries.update(entry.id, { description: trimmed });
       onChange?.();
     } catch (e) {
       showError(`! ${(e as Error).message}`);
