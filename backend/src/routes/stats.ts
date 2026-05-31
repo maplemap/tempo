@@ -61,8 +61,6 @@ const eventsInRange = db.prepare<RangeParams, EventRef>(`
 
 interface ByCategoryRow {
   category: Category;
-  task_id: number | null;
-  task_name: string | null;
   entry_id: number;
   started_at: string;
   ended_at: string | null;
@@ -72,16 +70,13 @@ interface ByCategoryRow {
 
 const entriesForByCategory = db.prepare<RangeParams, ByCategoryRow>(`
   SELECT
-    e.category                  AS category,
-    e.task_id                   AS task_id,
-    t.name                      AS task_name,
-    e.id                        AS entry_id,
-    e.started_at                AS started_at,
-    e.ended_at                  AS ended_at,
+    e.category                      AS category,
+    e.id                            AS entry_id,
+    e.started_at                    AS started_at,
+    e.ended_at                      AS ended_at,
     COALESCE(e.duration_seconds, 0) AS duration_seconds,
-    e.description               AS description
+    e.description                   AS description
   FROM time_entries e
-  LEFT JOIN tasks t ON t.id = e.task_id
   WHERE e.started_at >= @fromIso AND e.started_at < @toIso AND e.duration_seconds IS NOT NULL
   ORDER BY e.started_at DESC
 `);
@@ -157,37 +152,31 @@ export default async function statsRoutes(fastify: FastifyInstance): Promise<voi
       duration_seconds: number;
       description: string | null;
     }
-    interface TaskOut {
-      task_id: number | null;
-      task_name: string | null;
+    interface GroupOut {
+      description: string | null;
       total: number;
       entries: EntryOut[];
     }
     interface CategoryOut {
       category: Category;
       total: number;
-      tasks: TaskOut[];
+      groups: GroupOut[];
     }
 
-    const catMap = new Map<Category, Map<string, TaskOut>>();
+    const catMap = new Map<Category, Map<string, GroupOut>>();
     let grandTotal = 0;
 
     for (const r of rows) {
       grandTotal += r.duration_seconds;
       if (!catMap.has(r.category)) catMap.set(r.category, new Map());
-      const taskKey = r.task_id == null ? 'null' : String(r.task_id);
-      const taskMap = catMap.get(r.category)!;
-      if (!taskMap.has(taskKey)) {
-        taskMap.set(taskKey, {
-          task_id: r.task_id,
-          task_name: r.task_name,
-          total: 0,
-          entries: [],
-        });
+      const groupKey = (r.description ?? '').toLowerCase().trim() || '\x00';
+      const groupMap = catMap.get(r.category)!;
+      if (!groupMap.has(groupKey)) {
+        groupMap.set(groupKey, { description: r.description, total: 0, entries: [] });
       }
-      const t = taskMap.get(taskKey)!;
-      t.total += r.duration_seconds;
-      t.entries.push({
+      const g = groupMap.get(groupKey)!;
+      g.total += r.duration_seconds;
+      g.entries.push({
         id: r.entry_id,
         started_at: r.started_at,
         ended_at: r.ended_at,
@@ -196,10 +185,10 @@ export default async function statsRoutes(fastify: FastifyInstance): Promise<voi
       });
     }
 
-    const categories: CategoryOut[] = [...catMap.entries()].map(([category, taskMap]) => {
-      const tasks = [...taskMap.values()].sort((a, b) => b.total - a.total);
-      const total = tasks.reduce((s, t) => s + t.total, 0);
-      return { category, total, tasks };
+    const categories: CategoryOut[] = [...catMap.entries()].map(([category, groupMap]) => {
+      const groups = [...groupMap.values()].sort((a, b) => b.total - a.total);
+      const total = groups.reduce((s, g) => s + g.total, 0);
+      return { category, total, groups };
     }).sort((a, b) => b.total - a.total);
 
     return {
