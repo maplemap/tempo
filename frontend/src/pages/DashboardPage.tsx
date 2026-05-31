@@ -55,7 +55,6 @@ export default function DashboardPage() {
   if (!stats) return null;
 
   const max = Math.max(1, ...stats.byProject.map((r) => r.total || 0));
-  const maxDay = Math.max(1, ...stats.byDay.map((r) => r.total || 0));
 
   return (
     <>
@@ -151,18 +150,6 @@ export default function DashboardPage() {
         </>
       )}
 
-      <hr className="rule" />
-
-      <div className="section-title">By day</div>
-      {stats.byDay.length === 0 && <div className="muted">no data</div>}
-      {stats.byDay.map((row) => (
-        <div key={row.day} className="dash-row">
-          <span className="name">{row.day}</span>
-          <span>{fmtDuration(row.total)}</span>
-          <AsciiBar ratio={row.total / maxDay} />
-          <span></span>
-        </div>
-      ))}
 
       <hr className="rule" />
 
