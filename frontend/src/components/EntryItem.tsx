@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api';
 import { fmtDuration, normalizeTimeInput } from '../lib/time';
 import ConfirmInline from './ConfirmInline';
-import type { Entry, Project } from '../lib/api';
+import CategoryBadge from './CategoryBadge';
+import type { Entry, Project, Category } from '../lib/api';
 
 interface EntryItemProps {
   entry: Entry;
@@ -104,6 +105,15 @@ export default function EntryItem({
     }
   }
 
+  async function saveCategory(next: Category | null) {
+    try {
+      await api.entries.setCategory(entry.id, next);
+      onChange?.();
+    } catch (e) {
+      showError(`! ${(e as Error).message}`);
+    }
+  }
+
   async function restart() {
     await api.timer.start({ projectId: entry.project_id, description: entry.description ?? '' });
     onRestart?.();
@@ -146,6 +156,7 @@ export default function EntryItem({
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
         </select>
+        <CategoryBadge category={entry.category} manual={entry.category_manual} onChange={saveCategory} />
         <input
           className="entry-desc-input"
           value={description}
@@ -153,11 +164,6 @@ export default function EntryItem({
           onBlur={saveDescription}
           onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
         />
-        <span className="badges">
-          {(entry.badges ?? []).map((b) => (
-            <span key={b} className="badge">{b}</span>
-          ))}
-        </span>
         <span className="entry-actions">
           <button className="btn icon-btn" onClick={restart}>[ ▶ ]</button>
           {confirmDelete

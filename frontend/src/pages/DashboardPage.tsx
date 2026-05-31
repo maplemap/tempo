@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import type { ByCategoryStats } from '../lib/api';
 import { rangeForPeriod, fmtDuration } from '../lib/time';
 import AsciiBar from '../components/AsciiBar';
 
@@ -11,7 +12,7 @@ interface StatsData {
   byProject: Array<{ project_name: string; project_id: number | null; total: number }>;
   byDay: Array<{ day: string; total: number }>;
   counters: { prs_created: number; reviews_done: number; prs_merged: number };
-  discrepancies: Array<{ entryId: number; description: string | null; missingRefs: string[] }>;
+  discrepancies: Array<{ entryId: number; description: string | null; missingRefs: Array<{ ref: string; url: string | null }> }>;
 }
 
 const periods: Array<{ key: Period; label: string }> = [
@@ -23,10 +24,33 @@ const periods: Array<{ key: Period; label: string }> = [
 export default function DashboardPage() {
   const [period, setPeriod] = useState<Period>('week');
   const [stats, setStats] = useState<StatsData | null>(null);
+  const [byCategory, setByCategory] = useState<ByCategoryStats | null>(null);
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    api.stats.get(rangeForPeriod(period)).then((data) => setStats(data as StatsData));
+    const range = rangeForPeriod(period);
+    api.stats.get(range).then((data) => setStats(data as StatsData));
+    api.stats.byCategory(range).then((data) => setByCategory(data));
+    setExpandedCats(new Set());
+    setExpandedTasks(new Set());
   }, [period]);
+
+  function toggleCat(c: string) {
+    setExpandedCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(c)) next.delete(c); else next.add(c);
+      return next;
+    });
+  }
+
+  function toggleTask(key: string) {
+    setExpandedTasks((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
 
   if (!stats) return null;
 
@@ -69,9 +93,68 @@ export default function DashboardPage() {
         </div>
       ))}
 
+      {byCategory && byCategory.categories.length > 0 && (
+        <>
+          <hr className="rule" />
+          <div className="section-title">By category</div>
+          {byCategory.categories.map((cat) => {
+            const ratio = byCategory.total > 0 ? cat.total / byCategory.total : 0;
+            const pct = Math.round(ratio * 100);
+            const open = expandedCats.has(cat.category);
+            return (
+              <div key={cat.category}>
+                <div
+                  className="dash-row"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => toggleCat(cat.category)}
+                >
+                  <span className="name">{open ? '▾' : '▸'} [{cat.category}]</span>
+                  <span>{fmtDuration(cat.total)}</span>
+                  <AsciiBar ratio={ratio} />
+                  <span className="muted">{pct}%</span>
+                </div>
+                {open && cat.tasks.map((t) => {
+                  const taskKey = `${cat.category}:${t.task_id ?? 'null'}`;
+                  const taskOpen = expandedTasks.has(taskKey);
+                  return (
+                    <div key={taskKey} style={{ marginLeft: 16 }}>
+                      <div
+                        className="dash-row"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => toggleTask(taskKey)}
+                      >
+                        <span className="name">{taskOpen ? '▾' : '▸'} {t.task_name ?? '(no task)'}</span>
+                        <span>{fmtDuration(t.total)}</span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                      {taskOpen && t.entries.map((e) => (
+                        <div key={e.id} style={{ marginLeft: 32, fontSize: 12 }} className="dash-row">
+                          <span className="muted">
+                            {new Date(e.started_at).toLocaleString(undefined, {
+                              weekday: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                          <span>{fmtDuration(e.duration_seconds)}</span>
+                          <span className="name">{e.description ?? '(no description)'}</span>
+                          <span></span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </>
+      )}
+
       <hr className="rule" />
 
       <div className="section-title">By day</div>
+      {stats.byDay.length === 0 && <div className="muted">no data</div>}
       {stats.byDay.map((row) => (
         <div key={row.day} className="dash-row">
           <span className="name">{row.day}</span>
@@ -108,7 +191,19 @@ export default function DashboardPage() {
           </div>
           {stats.discrepancies.map((d) => (
             <div key={d.entryId} style={{ padding: '4px 0' }}>
-              · {d.description} <span className="muted">(refs: {d.missingRefs.join(', ')})</span>
+              · {d.description}{' '}
+              <span className="muted">
+                (refs:{' '}
+                {d.missingRefs.map((r, i) => (
+                  <span key={r.ref}>
+                    {i > 0 && ', '}
+                    {r.url
+                      ? <a href={r.url} target="_blank" rel="noreferrer">#{r.ref}</a>
+                      : `#${r.ref}`}
+                  </span>
+                ))}
+                )
+              </span>
             </div>
           ))}
         </>

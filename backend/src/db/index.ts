@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { env } from '../lib/env.js';
+import { categorizeEntry } from '../lib/categorize.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -21,6 +22,9 @@ try { db.exec(`ALTER TABLE projects ADD COLUMN github_repo TEXT`); } catch {}
 try { db.exec(`ALTER TABLE projects ADD COLUMN github_base_branch TEXT`); } catch {}
 try { db.exec(`ALTER TABLE time_entries ADD COLUMN task_id INTEGER REFERENCES tasks(id)`); } catch {}
 try { db.exec(`ALTER TABLE plans ADD COLUMN task_id INTEGER REFERENCES tasks(id) ON DELETE SET NULL`); } catch {}
+try { db.exec(`ALTER TABLE time_entries ADD COLUMN category TEXT NOT NULL DEFAULT 'task'`); } catch {}
+try { db.exec(`ALTER TABLE time_entries ADD COLUMN category_manual INTEGER NOT NULL DEFAULT 0`); } catch {}
+try { db.exec(`CREATE INDEX IF NOT EXISTS idx_entries_category_started ON time_entries(category, started_at)`); } catch {}
 
 // Backfill: create tasks from unique (description, project_id) pairs in existing entries
 const taskCount = (db.prepare(`SELECT COUNT(*) AS n FROM tasks`).get() as { n: number }).n;
@@ -51,6 +55,29 @@ if (taskCount === 0) {
       }
     })();
     console.log(`[db] backfilled ${pairs.length} tasks from existing entries`);
+  }
+}
+
+// Backfill: categorize all existing entries on first run after the migration.
+const categorized = (db.prepare(
+  `SELECT COUNT(*) AS n FROM time_entries WHERE category != 'task'`
+).get() as { n: number }).n;
+
+if (categorized === 0) {
+  const rows = db.prepare(`
+    SELECT e.id, e.description, t.name AS task_name
+    FROM time_entries e
+    LEFT JOIN tasks t ON t.id = e.task_id
+  `).all() as Array<{ id: number; description: string | null; task_name: string | null }>;
+
+  if (rows.length > 0) {
+    const updateCategory = db.prepare(`UPDATE time_entries SET category = ? WHERE id = ?`);
+    db.transaction((items: typeof rows) => {
+      for (const r of items) {
+        updateCategory.run(categorizeEntry(r.task_name, r.description), r.id);
+      }
+    })(rows);
+    console.log(`[db] backfilled categories for ${rows.length} entries`);
   }
 }
 

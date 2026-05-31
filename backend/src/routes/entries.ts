@@ -3,6 +3,8 @@ import { db } from '../db/index.js';
 import { requireAuth } from '../lib/auth.js';
 import { diffSeconds, parseRange } from '../lib/time.js';
 import { autoLinkPRs } from '../lib/autolink.js';
+import { categorizeEntry, isCategory } from '../lib/categorize.js';
+import type { Category } from '../lib/categorize.js';
 
 interface DbEntry {
   id: number;
@@ -12,6 +14,8 @@ interface DbEntry {
   started_at: string;
   ended_at: string | null;
   duration_seconds: number | null;
+  category: Category;
+  category_manual: 0 | 1;
   project_name: string | null;
   github_repo: string | null;
 }
@@ -25,13 +29,6 @@ interface EntryLink {
 
 interface Entry extends DbEntry {
   links: EntryLink[];
-  badges: string[];
-}
-
-interface EventRow {
-  ref_id: string;
-  event_type: string;
-  repo_or_board: string | null;
 }
 
 interface RangeParams { fromIso: string; toIso: string; }
@@ -59,7 +56,6 @@ const getEntry = db.prepare<[number | string], DbEntry>(`
 `);
 
 const getLinks = db.prepare<[number], EntryLink>(`SELECT * FROM entry_links WHERE entry_id = ?`);
-const allEvents = db.prepare<[], EventRow>(`SELECT ref_id, event_type, repo_or_board FROM external_events`);
 const insertLink = db.prepare<[number | string, string, string | null]>(
   `INSERT INTO entry_links (entry_id, url, label) VALUES (?, ?, ?)`
 );
@@ -68,50 +64,8 @@ const deleteLink = db.prepare<[number | string, number | string]>(
 );
 const deleteEntry = db.prepare<[number | string]>(`DELETE FROM time_entries WHERE id = ?`);
 
-function extractRefs(description: string | null): string[] {
-  if (!description) return [];
-  const out = new Set<string>();
-  for (const m of description.matchAll(/(?:PR|pr|#)\s*#?(\d+)/g)) out.add(m[1]);
-  return [...out];
-}
-
-function buildBadgeIndex(events: EventRow[]): Map<string, Set<string>> {
-  const map = new Map<string, Set<string>>();
-  for (const ev of events) {
-    const key = `${ev.repo_or_board ?? ''}:${ev.ref_id}`;
-    if (!map.has(key)) map.set(key, new Set());
-    map.get(key)!.add(ev.event_type);
-  }
-  return map;
-}
-
-function badgesFor(
-  description: string | null,
-  githubRepo: string | null,
-  index: Map<string, Set<string>>
-): string[] {
-  if (!githubRepo) return [];
-  const refs = extractRefs(description);
-  if (refs.length === 0) return [];
-  const types = new Set<string>();
-  for (const r of refs) {
-    const found = index.get(`${githubRepo}:${r}`);
-    if (found) for (const t of found) types.add(t);
-  }
-  return [...types].map((t) => {
-    if (t === 'pr_created')  return '✓ TASK';
-    if (t === 'pr_reviewed') return '✓ REVIEW';
-    if (t === 'pr_merged')   return '✓ SHIPPED';
-    return t;
-  });
-}
-
-function hydrate(entry: DbEntry, badgeIndex?: Map<string, Set<string>>): Entry {
-  return {
-    ...entry,
-    links: getLinks.all(entry.id),
-    badges: badgeIndex ? badgesFor(entry.description, entry.github_repo, badgeIndex) : []
-  };
+function hydrate(entry: DbEntry): Entry {
+  return { ...entry, links: getLinks.all(entry.id) };
 }
 
 export default async function entryRoutes(fastify: FastifyInstance): Promise<void> {
@@ -125,8 +79,7 @@ export default async function entryRoutes(fastify: FastifyInstance): Promise<voi
     const rows = listEntries.all({ fromIso, toIso, limit, offset });
     const total = countEntries.get({ fromIso, toIso })!.count;
     const hasMore = offset + limit < total;
-    const index = buildBadgeIndex(allEvents.all());
-    return { entries: rows.map((r) => hydrate(r, index)), hasMore };
+    return { entries: rows.map(hydrate), hasMore };
   });
 
   fastify.get<{ Params: { id: string } }>('/:id', async (req, reply) => {
@@ -144,14 +97,27 @@ export default async function entryRoutes(fastify: FastifyInstance): Promise<voi
     const endedAt = next.ended_at;
 
     if (endedAt && new Date(endedAt) <= new Date(startedAt)) {
-      reply.code(400).send({ error: 'ended_at must be after started_at' }); return;
+      reply.code(400).send({ error: 'ended_at must be after start' }); return;
     }
 
     const duration = endedAt ? diffSeconds(startedAt, endedAt) : null;
 
+    // Recompute category only if not manually overridden AND description/task_id changed.
+    let nextCategory: Category = current.category;
+    if (!current.category_manual) {
+      const descriptionChanged = next.description !== current.description;
+      const taskChanged = next.task_id !== current.task_id;
+      if (descriptionChanged || taskChanged) {
+        const task = next.task_id
+          ? db.prepare<[number], { name: string }>(`SELECT name FROM tasks WHERE id = ?`).get(next.task_id)
+          : null;
+        nextCategory = categorizeEntry(task?.name ?? null, next.description ?? null);
+      }
+    }
+
     db.prepare<{
       id: number; project_id: number | null; task_id: number | null; description: string;
-      started_at: string; ended_at: string | null; duration_seconds: number | null;
+      started_at: string; ended_at: string | null; duration_seconds: number | null; category: Category;
     }>(`
       UPDATE time_entries
       SET project_id = @project_id,
@@ -159,7 +125,8 @@ export default async function entryRoutes(fastify: FastifyInstance): Promise<voi
           description = @description,
           started_at = @started_at,
           ended_at = @ended_at,
-          duration_seconds = @duration_seconds
+          duration_seconds = @duration_seconds,
+          category = @category
       WHERE id = @id
     `).run({
       id: current.id,
@@ -168,7 +135,8 @@ export default async function entryRoutes(fastify: FastifyInstance): Promise<voi
       description: next.description ?? '',
       started_at: startedAt,
       ended_at: endedAt ?? null,
-      duration_seconds: duration
+      duration_seconds: duration,
+      category: nextCategory,
     });
 
     const saved = getEntry.get(current.id);
@@ -183,6 +151,35 @@ export default async function entryRoutes(fastify: FastifyInstance): Promise<voi
     deleteEntry.run(req.params.id);
     return { ok: true };
   });
+
+  fastify.patch<{ Params: { id: string }; Body: { category?: unknown } }>(
+    '/:id/category',
+    async (req, reply) => {
+      const current = getEntry.get(req.params.id);
+      if (!current) { reply.code(404).send({ error: 'not found' }); return; }
+
+      const value = req.body?.category;
+
+      if (value === null) {
+        // Reset to auto: recompute from current task name + description.
+        const task = current.task_id
+          ? db.prepare<[number], { name: string }>(`SELECT name FROM tasks WHERE id = ?`).get(current.task_id)
+          : null;
+        const auto = categorizeEntry(task?.name ?? null, current.description);
+        db.prepare(`UPDATE time_entries SET category = ?, category_manual = 0 WHERE id = ?`)
+          .run(auto, current.id);
+      } else if (isCategory(value)) {
+        db.prepare(`UPDATE time_entries SET category = ?, category_manual = 1 WHERE id = ?`)
+          .run(value, current.id);
+      } else {
+        reply.code(400).send({ error: 'invalid category' });
+        return;
+      }
+
+      const final = getEntry.get(current.id);
+      return { entry: final ? hydrate(final) : null };
+    }
+  );
 
   fastify.post<{ Params: { id: string }; Body: { url?: string; label?: string } }>(
     '/:id/links',

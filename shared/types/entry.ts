@@ -1,3 +1,5 @@
+import type { Category } from './category.js';
+
 export interface EntryLink {
   id: number;
   entry_id: number;
@@ -14,6 +16,8 @@ export interface Entry {
   started_at: string;
   ended_at: string | null;
   duration_seconds: number | null;
+  category: Category;
+  category_manual: 0 | 1;
   links: EntryLink[];
   badges: string[];
 }

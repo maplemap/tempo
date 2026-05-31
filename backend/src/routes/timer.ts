@@ -3,6 +3,8 @@ import { db } from '../db/index.js';
 import { requireAuth } from '../lib/auth.js';
 import { nowIso, diffSeconds } from '../lib/time.js';
 import { autoLinkPRs } from '../lib/autolink.js';
+import { categorizeEntry } from '../lib/categorize.js';
+import type { Category } from '../lib/categorize.js';
 
 interface TimerRow {
   id: number;
@@ -25,10 +27,16 @@ const getOpen = db.prepare<[], TimerRow>(`
   LIMIT 1
 `);
 
-interface InsertParams { projectId: number | null; taskId: number | null; description: string; startedAt: string; }
+interface InsertParams {
+  projectId: number | null;
+  taskId: number | null;
+  description: string;
+  startedAt: string;
+  category: Category;
+}
 const insertEntry = db.prepare<InsertParams>(`
-  INSERT INTO time_entries (project_id, task_id, description, started_at)
-  VALUES (@projectId, @taskId, @description, @startedAt)
+  INSERT INTO time_entries (project_id, task_id, description, started_at, category, category_manual)
+  VALUES (@projectId, @taskId, @description, @startedAt, @category, 0)
 `);
 
 interface CloseParams { endedAt: string; duration: number; id: number; }
@@ -58,10 +66,17 @@ export default async function timerRoutes(fastify: FastifyInstance): Promise<voi
       const { projectId = null, taskId = null, description = '' } = req.body;
 
       let finalDescription = description;
+      let taskName: string | null = null;
       if (taskId) {
-        const task = db.prepare<[number], { name: string }>(`SELECT name FROM tasks WHERE id = ?`).get(taskId);
-        if (task) finalDescription = task.name;
+        const task = db.prepare<[number], { name: string }>(
+          `SELECT name FROM tasks WHERE id = ?`
+        ).get(taskId);
+        if (task) {
+          taskName = task.name;
+          finalDescription = task.name;
+        }
       }
+      const category = categorizeEntry(taskName, finalDescription);
 
       closeAllOpen.run({ endedAt: nowIso() });
       const result = insertEntry.run({
@@ -69,6 +84,7 @@ export default async function timerRoutes(fastify: FastifyInstance): Promise<voi
         taskId: taskId ?? null,
         description: finalDescription,
         startedAt: nowIso(),
+        category,
       });
       const row = db.prepare<[number | bigint], TimerRow>(`
         SELECT e.*, p.name AS project_name, p.github_repo
