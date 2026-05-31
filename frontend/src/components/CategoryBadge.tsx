@@ -28,17 +28,14 @@ export default function CategoryBadge({ category, manual, onChange }: CategoryBa
     onChange(value);
   }
 
-  const label = `[${category}]${manual ? '*' : ''}`;
-
   return (
-    <span ref={rootRef} className="category-badge" style={{ position: 'relative', display: 'inline-block', width: '11ch' }}>
+    <span ref={rootRef} className="category-badge" style={{ position: 'relative', display: 'inline-block', width: 'fit-content' }}>
       <button
         type="button"
         className="btn"
-        style={{ fontFamily: 'inherit', padding: '0 2px', width: '100%', textAlign: 'left' }}
         onClick={() => setOpen((v) => !v)}
       >
-        {label}
+        {category}{manual ? '*' : ''}
       </button>
       {open && (
         <div

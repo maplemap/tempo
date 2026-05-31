@@ -21,7 +21,7 @@ export interface Entry {
   started_at: string; ended_at: string | null; duration_seconds: number | null;
   category: Category;
   category_manual: 0 | 1;
-  links: EntryLink[]; badges: string[];
+  links: EntryLink[];
 }
 export interface TimerEntry {
   id: number; project_id: number | null; task_id: number | null; project_name: string | null;

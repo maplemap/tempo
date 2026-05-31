@@ -29,13 +29,6 @@ interface EntryLink {
 
 interface Entry extends DbEntry {
   links: EntryLink[];
-  badges: string[];
-}
-
-interface EventRow {
-  ref_id: string;
-  event_type: string;
-  repo_or_board: string | null;
 }
 
 interface RangeParams { fromIso: string; toIso: string; }
@@ -63,7 +56,6 @@ const getEntry = db.prepare<[number | string], DbEntry>(`
 `);
 
 const getLinks = db.prepare<[number], EntryLink>(`SELECT * FROM entry_links WHERE entry_id = ?`);
-const allEvents = db.prepare<[], EventRow>(`SELECT ref_id, event_type, repo_or_board FROM external_events`);
 const insertLink = db.prepare<[number | string, string, string | null]>(
   `INSERT INTO entry_links (entry_id, url, label) VALUES (?, ?, ?)`
 );
@@ -72,50 +64,8 @@ const deleteLink = db.prepare<[number | string, number | string]>(
 );
 const deleteEntry = db.prepare<[number | string]>(`DELETE FROM time_entries WHERE id = ?`);
 
-function extractRefs(description: string | null): string[] {
-  if (!description) return [];
-  const out = new Set<string>();
-  for (const m of description.matchAll(/(?:PR|pr|#)\s*#?(\d+)/g)) out.add(m[1]);
-  return [...out];
-}
-
-function buildBadgeIndex(events: EventRow[]): Map<string, Set<string>> {
-  const map = new Map<string, Set<string>>();
-  for (const ev of events) {
-    const key = `${ev.repo_or_board ?? ''}:${ev.ref_id}`;
-    if (!map.has(key)) map.set(key, new Set());
-    map.get(key)!.add(ev.event_type);
-  }
-  return map;
-}
-
-function badgesFor(
-  description: string | null,
-  githubRepo: string | null,
-  index: Map<string, Set<string>>
-): string[] {
-  if (!githubRepo) return [];
-  const refs = extractRefs(description);
-  if (refs.length === 0) return [];
-  const types = new Set<string>();
-  for (const r of refs) {
-    const found = index.get(`${githubRepo}:${r}`);
-    if (found) for (const t of found) types.add(t);
-  }
-  return [...types].map((t) => {
-    if (t === 'pr_created')  return '✓ TASK';
-    if (t === 'pr_reviewed') return '✓ REVIEW';
-    if (t === 'pr_merged')   return '✓ SHIPPED';
-    return t;
-  });
-}
-
-function hydrate(entry: DbEntry, badgeIndex?: Map<string, Set<string>>): Entry {
-  return {
-    ...entry,
-    links: getLinks.all(entry.id),
-    badges: badgeIndex ? badgesFor(entry.description, entry.github_repo, badgeIndex) : []
-  };
+function hydrate(entry: DbEntry): Entry {
+  return { ...entry, links: getLinks.all(entry.id) };
 }
 
 export default async function entryRoutes(fastify: FastifyInstance): Promise<void> {
@@ -129,8 +79,7 @@ export default async function entryRoutes(fastify: FastifyInstance): Promise<voi
     const rows = listEntries.all({ fromIso, toIso, limit, offset });
     const total = countEntries.get({ fromIso, toIso })!.count;
     const hasMore = offset + limit < total;
-    const index = buildBadgeIndex(allEvents.all());
-    return { entries: rows.map((r) => hydrate(r, index)), hasMore };
+    return { entries: rows.map(hydrate), hasMore };
   });
 
   fastify.get<{ Params: { id: string } }>('/:id', async (req, reply) => {

@@ -164,11 +164,6 @@ export default function EntryItem({
           onBlur={saveDescription}
           onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
         />
-        <span className="badges">
-          {(entry.badges ?? []).map((b) => (
-            <span key={b} className="badge">{b}</span>
-          ))}
-        </span>
         <span className="entry-actions">
           <button className="btn icon-btn" onClick={restart}>[ ▶ ]</button>
           {confirmDelete

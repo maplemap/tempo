@@ -155,7 +155,7 @@ button {
 
 .entry-row {
   display: grid;
-  grid-template-columns: 110px 60px 90px 1fr auto auto;
+  grid-template-columns: 110px 27px 74px 11ch 1fr auto auto;
   gap: 12px;
   align-items: baseline;
   font-variant-numeric: tabular-nums;
@@ -211,6 +211,8 @@ button {
   font-family: inherit;
   padding: 0;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .entry-desc-input:focus {
@@ -285,17 +287,19 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   white-space: nowrap;
 }
 
-.badges {
-  display: flex;
-  gap: 4px;
-}
-
-.badge {
-  border: 1px solid var(--hairline);
+.category-badge .btn {
   padding: 0 4px;
   font-size: 11px;
-  text-transform: uppercase;
+  font-weight: normal;
   letter-spacing: 0.08em;
+  width: 100%;
+  text-align: left;
+}
+
+.category-badge .btn:hover {
+  background: var(--bg);
+  color: var(--fg);
+  opacity: 0.7;
 }
 
 .nav {
@@ -525,7 +529,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 /* Dashboard */
 .dash-row {
   display: grid;
-  grid-template-columns: 200px 80px 1fr 60px;
+  grid-template-columns: 1fr 70px 2fr 50px;
   gap: 12px;
   font-variant-numeric: tabular-nums;
   padding: 4px 0;
@@ -881,11 +885,6 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     font-size: 13px;
     margin-bottom: 6px;
     color: var(--muted);
-  }
-
-  .entry-row .badges {
-    display: inline-flex;
-    margin-bottom: 6px;
   }
 
   .entry-row .entry-actions {

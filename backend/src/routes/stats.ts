@@ -10,7 +10,7 @@ interface ProjectTotal { project_name: string; project_id: number | null; total:
 interface DayTotal { day: string; total: number; }
 interface TotalAll { total: number | null; }
 interface EventCount { event_type: string; count: number; }
-interface EntryRef { id: number; description: string | null; started_at: string; }
+interface EntryRef { id: number; description: string | null; started_at: string; github_repo: string | null; }
 interface EventRef { ref_id: string; ref_url: string; event_type: string; title: string | null; }
 
 const totalsByProject = db.prepare<RangeParams, ProjectTotal>(`
@@ -47,9 +47,10 @@ const countEvents = db.prepare<RangeParams, EventCount>(`
 `);
 
 const entriesInRange = db.prepare<RangeParams, EntryRef>(`
-  SELECT id, description, started_at
-  FROM time_entries
-  WHERE started_at >= @fromIso AND started_at < @toIso
+  SELECT e.id, e.description, e.started_at, p.github_repo
+  FROM time_entries e
+  LEFT JOIN projects p ON p.id = e.project_id
+  WHERE e.started_at >= @fromIso AND e.started_at < @toIso
 `);
 
 const eventsInRange = db.prepare<RangeParams, EventRef>(`
@@ -91,10 +92,12 @@ function extractRefs(description: string | null): string[] {
   return matches.map((m) => m.replace(/[^\d]/g, ''));
 }
 
+interface MissingRef { ref: string; url: string | null; }
+
 interface Discrepancy {
   entryId: number;
   description: string | null;
-  missingRefs: string[];
+  missingRefs: MissingRef[];
 }
 
 function findDiscrepancies(entries: EntryRef[], events: EventRef[]): Discrepancy[] {
@@ -103,7 +106,12 @@ function findDiscrepancies(entries: EntryRef[], events: EventRef[]): Discrepancy
   for (const entry of entries) {
     const refs = extractRefs(entry.description);
     if (refs.length === 0) continue;
-    const missing = refs.filter((r) => !eventRefs.has(r));
+    const missing: MissingRef[] = refs
+      .filter((r) => !eventRefs.has(r))
+      .map((r) => ({
+        ref: r,
+        url: entry.github_repo ? `https://github.com/${entry.github_repo}/pull/${r}` : null,
+      }));
     if (missing.length > 0) {
       discrepancies.push({ entryId: entry.id, description: entry.description, missingRefs: missing });
     }

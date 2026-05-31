@@ -12,7 +12,7 @@ interface StatsData {
   byProject: Array<{ project_name: string; project_id: number | null; total: number }>;
   byDay: Array<{ day: string; total: number }>;
   counters: { prs_created: number; reviews_done: number; prs_merged: number };
-  discrepancies: Array<{ entryId: number; description: string | null; missingRefs: string[] }>;
+  discrepancies: Array<{ entryId: number; description: string | null; missingRefs: Array<{ ref: string; url: string | null }> }>;
 }
 
 const periods: Array<{ key: Period; label: string }> = [
@@ -154,6 +154,7 @@ export default function DashboardPage() {
       <hr className="rule" />
 
       <div className="section-title">By day</div>
+      {stats.byDay.length === 0 && <div className="muted">no data</div>}
       {stats.byDay.map((row) => (
         <div key={row.day} className="dash-row">
           <span className="name">{row.day}</span>
@@ -190,7 +191,19 @@ export default function DashboardPage() {
           </div>
           {stats.discrepancies.map((d) => (
             <div key={d.entryId} style={{ padding: '4px 0' }}>
-              · {d.description} <span className="muted">(refs: {d.missingRefs.join(', ')})</span>
+              · {d.description}{' '}
+              <span className="muted">
+                (refs:{' '}
+                {d.missingRefs.map((r, i) => (
+                  <span key={r.ref}>
+                    {i > 0 && ', '}
+                    {r.url
+                      ? <a href={r.url} target="_blank" rel="noreferrer">#{r.ref}</a>
+                      : `#${r.ref}`}
+                  </span>
+                ))}
+                )
+              </span>
             </div>
           ))}
         </>
