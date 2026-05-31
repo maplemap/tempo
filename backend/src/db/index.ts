@@ -26,36 +26,70 @@ try { db.exec(`ALTER TABLE time_entries ADD COLUMN category TEXT NOT NULL DEFAUL
 try { db.exec(`ALTER TABLE time_entries ADD COLUMN category_manual INTEGER NOT NULL DEFAULT 0`); } catch {}
 try { db.exec(`CREATE INDEX IF NOT EXISTS idx_entries_category_started ON time_entries(category, started_at)`); } catch {}
 
-// Backfill: create tasks from unique (description, project_id) pairs in existing entries
-const taskCount = (db.prepare(`SELECT COUNT(*) AS n FROM tasks`).get() as { n: number }).n;
-if (taskCount === 0) {
-  const pairs = db.prepare(`
-    SELECT TRIM(description) AS name, project_id
-    FROM time_entries
-    WHERE description IS NOT NULL AND TRIM(description) != ''
-    GROUP BY LOWER(TRIM(description)), project_id IS NULL, COALESCE(project_id, -1)
-  `).all() as Array<{ name: string; project_id: number | null }>;
+// Remove tasks: null out FKs, drop the table, then rebuild tables to remove broken FK constraints
+try {
+  db.exec(`UPDATE time_entries SET task_id = NULL`);
+  db.exec(`UPDATE plans SET task_id = NULL`);
+  db.exec(`DROP TABLE IF EXISTS tasks`);
+} catch {}
 
-  if (pairs.length > 0) {
-    const insertTask  = db.prepare(`INSERT INTO tasks (name, project_id) VALUES (?, ?)`);
-    const linkEntries = db.prepare(`
-      UPDATE time_entries SET task_id = ?
-      WHERE task_id IS NULL AND LOWER(TRIM(description)) = LOWER(?) AND project_id IS ?
-    `);
-    const linkPlans   = db.prepare(`
-      UPDATE plans SET task_id = ?
-      WHERE task_id IS NULL AND LOWER(TRIM(text)) = LOWER(?) AND project_id IS ?
-    `);
+// Rebuild time_entries without task_id→tasks FK (broken after tasks table drop).
+// Uses legacy_alter_table=ON so SQLite does NOT auto-update FK refs in entry_links on rename.
+const timeFkCount = (db.prepare(
+  `SELECT COUNT(*) AS n FROM pragma_foreign_key_list('time_entries') WHERE "table" = 'tasks'`
+).get() as { n: number }).n;
+if (timeFkCount > 0) {
+  db.pragma('foreign_keys = OFF');
+  db.pragma('legacy_alter_table = ON');
+  db.exec(`
+    CREATE TABLE time_entries_new (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id       INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+      description      TEXT,
+      started_at       TEXT NOT NULL,
+      ended_at         TEXT,
+      duration_seconds INTEGER,
+      task_id          INTEGER,
+      category         TEXT NOT NULL DEFAULT 'task',
+      category_manual  INTEGER NOT NULL DEFAULT 0
+    );
+    INSERT INTO time_entries_new SELECT * FROM time_entries;
+    DROP TABLE time_entries;
+    ALTER TABLE time_entries_new RENAME TO time_entries;
+    CREATE INDEX IF NOT EXISTS idx_entries_started ON time_entries(started_at);
+    CREATE INDEX IF NOT EXISTS idx_entries_open ON time_entries(ended_at) WHERE ended_at IS NULL;
+    CREATE INDEX IF NOT EXISTS idx_entries_category_started ON time_entries(category, started_at);
+  `);
+  db.pragma('legacy_alter_table = OFF');
+  db.pragma('foreign_keys = ON');
+  console.log('[db] rebuilt time_entries without tasks FK');
+}
 
-    db.transaction(() => {
-      for (const { name, project_id } of pairs) {
-        const { lastInsertRowid: tid } = insertTask.run(name, project_id);
-        linkEntries.run(tid, name, project_id);
-        linkPlans.run(tid, name, project_id);
-      }
-    })();
-    console.log(`[db] backfilled ${pairs.length} tasks from existing entries`);
-  }
+// Rebuild plans without task_id→tasks FK
+const planFkCount = (db.prepare(
+  `SELECT COUNT(*) AS n FROM pragma_foreign_key_list('plans') WHERE "table" = 'tasks'`
+).get() as { n: number }).n;
+if (planFkCount > 0) {
+  db.pragma('foreign_keys = OFF');
+  db.pragma('legacy_alter_table = ON');
+  db.exec(`
+    CREATE TABLE plans_new (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER REFERENCES projects(id),
+      task_id    INTEGER,
+      text       TEXT NOT NULL,
+      position   INTEGER NOT NULL DEFAULT 0,
+      done       INTEGER NOT NULL DEFAULT 0,
+      done_at    TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    INSERT INTO plans_new SELECT * FROM plans;
+    DROP TABLE plans;
+    ALTER TABLE plans_new RENAME TO plans;
+  `);
+  db.pragma('legacy_alter_table = OFF');
+  db.pragma('foreign_keys = ON');
+  console.log('[db] rebuilt plans without tasks FK');
 }
 
 // Backfill: categorize all existing entries on first run after the migration.
@@ -65,16 +99,14 @@ const categorized = (db.prepare(
 
 if (categorized === 0) {
   const rows = db.prepare(`
-    SELECT e.id, e.description, t.name AS task_name
-    FROM time_entries e
-    LEFT JOIN tasks t ON t.id = e.task_id
-  `).all() as Array<{ id: number; description: string | null; task_name: string | null }>;
+    SELECT id, description FROM time_entries
+  `).all() as Array<{ id: number; description: string | null }>;
 
   if (rows.length > 0) {
     const updateCategory = db.prepare(`UPDATE time_entries SET category = ? WHERE id = ?`);
     db.transaction((items: typeof rows) => {
       for (const r of items) {
-        updateCategory.run(categorizeEntry(r.task_name, r.description), r.id);
+        updateCategory.run(categorizeEntry(r.description), r.id);
       }
     })(rows);
     console.log(`[db] backfilled categories for ${rows.length} entries`);

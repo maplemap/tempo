@@ -1,35 +1,48 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
-import type { Entry, Project, Task, TimerEntry } from '../lib/api';
+import type { Entry, Project, TimerEntry } from '../lib/api';
 import { fmtClock, fmtDate, fmtDuration, fmtDayHeader, isoDateKey, rangeLastNDays, normalizeTimeInput } from '../lib/time';
 import EntryItem from '../components/EntryItem';
 import { renderDescription } from '../lib/renderDescription';
 
-const FAVICON_SIZE        = 64;
-const FAVICON_RADIUS      = 30;
-const FAVICON_FONT_SM     = 24;
-const FAVICON_FONT_LG     = 34;
+const FAVICON_SIZE   = 64;
+const FAVICON_CORNER = 14;
 
-function drawFavicon(minutes: number | null, color: string): void {
+function drawFavicon(minutes: number | null): void {
   const canvas = document.createElement('canvas');
   canvas.width = FAVICON_SIZE;
   canvas.height = FAVICON_SIZE;
   const ctx = canvas.getContext('2d')!;
-  const center = FAVICON_SIZE / 2;
+  const s = FAVICON_SIZE;
+  const r = FAVICON_CORNER;
 
-  ctx.fillStyle = color;
+  // Rounded square background
+  ctx.fillStyle = minutes !== null ? '#fe5f33' : '#1a1a1a';
   ctx.beginPath();
-  ctx.arc(center, center, FAVICON_RADIUS, 0, Math.PI * 2);
+  ctx.moveTo(r, 0);
+  ctx.lineTo(s - r, 0);
+  ctx.quadraticCurveTo(s, 0, s, r);
+  ctx.lineTo(s, s - r);
+  ctx.quadraticCurveTo(s, s, s - r, s);
+  ctx.lineTo(r, s);
+  ctx.quadraticCurveTo(0, s, 0, s - r);
+  ctx.lineTo(0, r);
+  ctx.quadraticCurveTo(0, 0, r, 0);
+  ctx.closePath();
   ctx.fill();
 
-  if (minutes !== null) {
+  ctx.fillStyle = '#f9f9f9';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  if (minutes === null) {
+    ctx.font = 'bold 44px monospace';
+    ctx.fillText('T', s / 2, s / 2 + 2);
+  } else {
     const label = minutes < 100 ? String(minutes) : '99+';
-    ctx.fillStyle = '#fff';
-    ctx.font = `bold ${label.length > 2 ? FAVICON_FONT_SM : FAVICON_FONT_LG}px monospace`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(label, center, center + 2);
+    ctx.font = `bold ${label.length > 2 ? 28 : 38}px monospace`;
+    ctx.fillText(label, s / 2, s / 2 + 2);
   }
 
   let link = document.getElementById('tempo-favicon') as HTMLLinkElement | null;
@@ -99,11 +112,9 @@ export default function TimerPage() {
   const location = useLocation();
   const [current, setCurrent] = useState<TimerEntry | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [projectId, setProjectId] = useState<string>(localStorage.getItem(LAST_PROJECT_KEY) || '');
   const [taskText, setTaskText] = useState('');
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [tick, setTick] = useState(0);
   const [startDraft, setStartDraft] = useState('');
   const [startError, setStartError] = useState<string | null>(null);
@@ -126,23 +137,17 @@ export default function TimerPage() {
     : 0;
 
   async function refresh() {
-    const [{ current: timerCurrent }, { projects: prjs }, { tasks: tks }, { entries: ents }] = await Promise.all([
+    const [{ current: timerCurrent }, { projects: prjs }, { entries: ents }] = await Promise.all([
       api.timer.current(),
       api.projects.list(),
-      api.tasks.list(),
       api.entries.list(rangeLastNDays(8)),
     ]);
     setCurrent(timerCurrent);
     setProjects(prjs);
-    setTasks(tks);
     setEntries(ents);
     if (timerCurrent) {
       startedAtRef.current = new Date(timerCurrent.started_at).getTime();
       setProjectId(String(timerCurrent.project_id ?? ''));
-      if (timerCurrent.task_id) {
-        const t = tks.find((t) => t.id === timerCurrent.task_id) ?? null;
-        setSelectedTask(t);
-      }
     }
   }
 
@@ -169,7 +174,7 @@ export default function TimerPage() {
 
   useEffect(() => {
     if (!current) {
-      drawFavicon(null, '#878787');
+      drawFavicon(null);
       return () => clearFavicon();
     }
 
@@ -177,7 +182,7 @@ export default function TimerPage() {
       const elapsed = startedAtRef.current
         ? (Date.now() - startedAtRef.current) / 1000
         : 0;
-      drawFavicon(Math.floor(elapsed / 60), '#000');
+      drawFavicon(Math.floor(elapsed / 60));
     }
 
     tick();
@@ -243,18 +248,7 @@ export default function TimerPage() {
     if (!trimmed) return;
     const pid = projectId ? Number(projectId) : null;
 
-    let task = selectedTask ?? tasks.find(
-      (t) => t.name.toLowerCase() === trimmed.toLowerCase() &&
-        (t.project_id === pid || (t.project_id === null && pid === null))
-    ) ?? null;
-
-    if (!task) {
-      const { task: created } = await api.tasks.create({ name: trimmed, project_id: pid });
-      setTasks((prev) => [...prev, created]);
-      task = created;
-    }
-
-    const res = await api.timer.start({ projectId: pid, taskId: task.id });
+    const res = await api.timer.start({ projectId: pid, description: trimmed });
     setCurrent(res.current);
     startedAtRef.current = new Date(res.current.started_at).getTime();
   }
@@ -268,7 +262,6 @@ export default function TimerPage() {
       setCurrent(null);
       setTick(0);
       setTaskText('');
-      setSelectedTask(null);
       await refresh();
     }
   }
@@ -284,7 +277,7 @@ export default function TimerPage() {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [current, projectId, selectedTask]);
+  }, [current, projectId]);
 
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const todayEntries = entries.filter((e) => isoDateKey(e.started_at) === todayKey);
@@ -387,7 +380,7 @@ export default function TimerPage() {
             className="input"
             placeholder="e.g. review PR #1301"
             value={taskText}
-            onChange={(e) => { setTaskText(e.target.value); setSelectedTask(null); }}
+            onChange={(e) => { setTaskText(e.target.value); }}
             onKeyDown={(e) => { if (e.key === 'Enter') void start(); }}
           />
         </div>

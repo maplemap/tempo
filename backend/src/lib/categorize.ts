@@ -55,9 +55,6 @@ export function categorize(text: string): Category {
   return 'task';
 }
 
-export function categorizeEntry(
-  taskName: string | null,
-  description: string | null
-): Category {
-  return categorize([taskName, description].filter(Boolean).join(' '));
+export function categorizeEntry(description: string | null): Category {
+  return categorize(description ?? '');
 }

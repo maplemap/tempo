@@ -19,7 +19,6 @@ import statsRoutes from './routes/stats.js';
 import syncRoutes, { runGitHubSync } from './routes/sync.js';
 import githubRoutes from './routes/github.js';
 import plansRoutes from './routes/plans.js';
-import tasksRoutes from './routes/tasks.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -38,7 +37,6 @@ await app.register(statsRoutes,   { prefix: '/api/stats' });
 await app.register(syncRoutes,    { prefix: '/api/sync' });
 await app.register(githubRoutes,  { prefix: '/api/github' });
 await app.register(plansRoutes,   { prefix: '/api/plans' });
-await app.register(tasksRoutes,   { prefix: '/api/tasks' });
 
 const publicDir = path.join(__dirname, '..', 'public');
 const viteUpstream = process.env['VITE_UPSTREAM'] ?? 'http://localhost:5173';
