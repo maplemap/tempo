@@ -26,14 +26,14 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<StatsData | null>(null);
   const [byCategory, setByCategory] = useState<ByCategoryStats | null>(null);
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
-  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const range = rangeForPeriod(period);
     api.stats.get(range).then((data) => setStats(data as StatsData));
     api.stats.byCategory(range).then((data) => setByCategory(data));
     setExpandedCats(new Set());
-    setExpandedTasks(new Set());
+    setExpandedGroups(new Set());
   }, [period]);
 
   function toggleCat(c: string) {
@@ -44,8 +44,8 @@ export default function DashboardPage() {
     });
   }
 
-  function toggleTask(key: string) {
-    setExpandedTasks((prev) => {
+  function toggleGroup(key: string) {
+    setExpandedGroups((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
       return next;
@@ -113,22 +113,22 @@ export default function DashboardPage() {
                   <AsciiBar ratio={ratio} />
                   <span className="muted">{pct}%</span>
                 </div>
-                {open && cat.tasks.map((t) => {
-                  const taskKey = `${cat.category}:${t.task_id ?? 'null'}`;
-                  const taskOpen = expandedTasks.has(taskKey);
+                {open && cat.groups.map((g) => {
+                  const groupKey = `${cat.category}:${(g.description ?? '').toLowerCase().trim() || '__empty__'}`;
+                  const groupOpen = expandedGroups.has(groupKey);
                   return (
-                    <div key={taskKey} style={{ marginLeft: 16 }}>
+                    <div key={groupKey} style={{ marginLeft: 16 }}>
                       <div
                         className="dash-row"
                         style={{ cursor: 'pointer' }}
-                        onClick={() => toggleTask(taskKey)}
+                        onClick={() => toggleGroup(groupKey)}
                       >
-                        <span className="name">{taskOpen ? '▾' : '▸'} {t.task_name ?? '(no task)'}</span>
-                        <span>{fmtDuration(t.total)}</span>
+                        <span className="name">{groupOpen ? '▾' : '▸'} {g.description ?? '(no description)'}</span>
+                        <span>{fmtDuration(g.total)}</span>
                         <span></span>
                         <span></span>
                       </div>
-                      {taskOpen && t.entries.map((e) => (
+                      {groupOpen && g.entries.map((e) => (
                         <div key={e.id} style={{ marginLeft: 32, fontSize: 12 }} className="dash-row">
                           <span className="muted">
                             {new Date(e.started_at).toLocaleString(undefined, {
@@ -138,7 +138,7 @@ export default function DashboardPage() {
                             })}
                           </span>
                           <span>{fmtDuration(e.duration_seconds)}</span>
-                          <span className="name">{e.description ?? '(no description)'}</span>
+                          <span></span>
                           <span></span>
                         </div>
                       ))}
