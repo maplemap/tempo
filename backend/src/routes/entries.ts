@@ -9,7 +9,6 @@ import type { Category } from '../lib/categorize.js';
 interface DbEntry {
   id: number;
   project_id: number | null;
-  task_id: number | null;
   description: string | null;
   started_at: string;
   ended_at: string | null;
@@ -102,26 +101,17 @@ export default async function entryRoutes(fastify: FastifyInstance): Promise<voi
 
     const duration = endedAt ? diffSeconds(startedAt, endedAt) : null;
 
-    // Recompute category only if not manually overridden AND description/task_id changed.
     let nextCategory: Category = current.category;
-    if (!current.category_manual) {
-      const descriptionChanged = next.description !== current.description;
-      const taskChanged = next.task_id !== current.task_id;
-      if (descriptionChanged || taskChanged) {
-        const task = next.task_id
-          ? db.prepare<[number], { name: string }>(`SELECT name FROM tasks WHERE id = ?`).get(next.task_id)
-          : null;
-        nextCategory = categorizeEntry(task?.name ?? null, next.description ?? null);
-      }
+    if (!current.category_manual && next.description !== current.description) {
+      nextCategory = categorizeEntry(next.description ?? null);
     }
 
     db.prepare<{
-      id: number; project_id: number | null; task_id: number | null; description: string;
+      id: number; project_id: number | null; description: string;
       started_at: string; ended_at: string | null; duration_seconds: number | null; category: Category;
     }>(`
       UPDATE time_entries
       SET project_id = @project_id,
-          task_id = @task_id,
           description = @description,
           started_at = @started_at,
           ended_at = @ended_at,
@@ -131,13 +121,23 @@ export default async function entryRoutes(fastify: FastifyInstance): Promise<voi
     `).run({
       id: current.id,
       project_id: next.project_id ?? null,
-      task_id: next.task_id ?? null,
       description: next.description ?? '',
       started_at: startedAt,
       ended_at: endedAt ?? null,
       duration_seconds: duration,
       category: nextCategory,
     });
+
+    // Bulk rename: update all other entries with the same old description
+    if (next.description !== current.description && next.description && current.description) {
+      const newCat = categorizeEntry(next.description);
+      db.prepare(`
+        UPDATE time_entries
+        SET description = ?,
+            category = CASE WHEN category_manual = 0 THEN ? ELSE category END
+        WHERE id != ? AND LOWER(TRIM(description)) = LOWER(TRIM(?))
+      `).run(next.description, newCat, current.id, current.description);
+    }
 
     const saved = getEntry.get(current.id);
     if (saved) await autoLinkPRs(current.id, saved.description, saved.github_repo).catch(() => {});
@@ -161,11 +161,8 @@ export default async function entryRoutes(fastify: FastifyInstance): Promise<voi
       const value = req.body?.category;
 
       if (value === null) {
-        // Reset to auto: recompute from current task name + description.
-        const task = current.task_id
-          ? db.prepare<[number], { name: string }>(`SELECT name FROM tasks WHERE id = ?`).get(current.task_id)
-          : null;
-        const auto = categorizeEntry(task?.name ?? null, current.description);
+        // Reset to auto: recompute from current description.
+        const auto = categorizeEntry(current.description);
         db.prepare(`UPDATE time_entries SET category = ?, category_manual = 0 WHERE id = ?`)
           .run(auto, current.id);
       } else if (isCategory(value)) {
