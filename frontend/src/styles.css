@@ -702,11 +702,15 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   border-bottom: 1px solid transparent;
   background: transparent;
   padding: 1px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .plan-inline-input:focus {
   border-bottom-color: var(--hairline);
   outline: none;
+  text-overflow: clip;
 }
 
 .plan-row--done .plan-inline-input,
