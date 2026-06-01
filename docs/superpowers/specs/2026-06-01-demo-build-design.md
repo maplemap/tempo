@@ -12,7 +12,7 @@
 ```
 1. node scripts/demo-seed.mjs          # create demo.db (no server needed)
 2. docker compose -f docker-compose.demo.yml up -d
-3. curl-loop → /api/health (max 30s)
+3. curl-loop → /health (max 30s)
 4. node scripts/demo-screenshots.mjs  # Playwright → docs/screenshots/*.png
 5. docker compose -f docker-compose.demo.yml down
 6. node scripts/demo-html.mjs         # build docs/index.html
@@ -92,6 +92,6 @@ demo-build: ## Build demo screenshots and deploy to GitHub Pages
 ## Constraints
 
 - Playwright installed as devDependency (`@playwright/test` + `playwright`)
-- `better-sqlite3` already a backend dependency — seed script runs from project root with `--experimental-vm-modules` or direct node
+- `better-sqlite3` lives in `backend/node_modules` — seed script runs with `node --input-type=module` from `backend/` dir, or imports via relative path `backend/node_modules/better-sqlite3`
 - Docker must be running locally
 - Port 3000 must be free during demo-build (demo container uses it)
