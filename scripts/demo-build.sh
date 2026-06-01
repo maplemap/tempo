@@ -17,9 +17,11 @@ if lsof -i :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
 fi
 
 # ── Cleanup trap ──────────────────────────────────────────────────────────────
+DEPLOY_TMP=""
 cleanup() {
   log "Stopping demo container..."
   docker compose -f docker-compose.demo.yml down --remove-orphans 2>/dev/null || true
+  [ -n "$DEPLOY_TMP" ] && rm -rf "$DEPLOY_TMP"
 }
 trap cleanup EXIT
 
@@ -52,7 +54,8 @@ node "$REPO_ROOT/scripts/demo-html.mjs"
 # ── 6. Deploy to gh-pages ─────────────────────────────────────────────────────
 log "Deploying to gh-pages..."
 DEPLOY_TMP=$(mktemp -d)
-cp -r "$REPO_ROOT/docs/." "$DEPLOY_TMP/"
+cp "$REPO_ROOT/docs/index.html" "$DEPLOY_TMP/"
+cp -r "$REPO_ROOT/docs/screenshots" "$DEPLOY_TMP/"
 REMOTE_URL=$(git remote get-url origin)
 
 cd "$DEPLOY_TMP"
