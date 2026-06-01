@@ -17,7 +17,7 @@ await page.setViewportSize({ width: 1280, height: 800 });
 await page.goto(`${BASE_URL}/login`);
 await page.fill('input[type="password"]', 'demo');
 await page.click('button[type="submit"]');
-await page.waitForURL(url => !url.includes('login'), { timeout: 10_000 });
+await page.waitForURL(url => !url.href.includes('login'), { timeout: 10_000 });
 
 async function shoot(route, filename) {
   await page.goto(`${BASE_URL}${route}`);

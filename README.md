@@ -4,6 +4,8 @@ Personal time tracker with GitHub verification overlay.
 
 Time tracking is the primary, authoritative record. GitHub events (PRs created, reviews submitted, PRs merged to main) are pulled in the background to verify and contextualize the picture you describe manually. A merged PR counts as a closed task — same workflow signal, no extra integration.
 
+**[→ Live demo](https://maplemap.github.io/tempo/)**
+
 ## Stack
 - Node.js + Fastify (backend)
 - React + Vite (frontend)

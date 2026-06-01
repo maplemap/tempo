@@ -12,7 +12,7 @@ fail() { echo -e "${RED}[demo-build] ERROR:${NC} $1"; exit 1; }
 command -v docker >/dev/null 2>&1 || fail "Docker not found"
 docker info >/dev/null 2>&1       || fail "Docker daemon not running"
 
-if lsof -i :3000 -t >/dev/null 2>&1; then
+if lsof -i :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
   fail "Port 3000 is in use. Stop any running services first (make stop)."
 fi
 
