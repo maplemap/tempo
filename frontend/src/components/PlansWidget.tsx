@@ -22,11 +22,12 @@ interface SortableItemProps {
   plan: Plan;
   projects: Project[];
   onRun: (plan: Plan) => void;
+  onMarkDone: (plan: Plan) => void;
   onUpdate: (id: number, patch: Partial<Plan>) => void;
   onDelete: (plan: Plan) => void;
 }
 
-function SortableItem({ plan, projects, onRun, onUpdate, onDelete }: SortableItemProps) {
+function SortableItem({ plan, projects, onRun, onMarkDone, onUpdate, onDelete }: SortableItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: plan.id });
   const [text, setText] = useState(plan.text);
   const active = projects.filter((p) => !p.archived || p.id === plan.project_id);
@@ -70,6 +71,7 @@ function SortableItem({ plan, projects, onRun, onUpdate, onDelete }: SortableIte
         onBlur={saveText}
         onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
       />
+      <button className="btn icon-btn" onClick={() => onMarkDone(plan)}>[ ✓ ]</button>
       <button className="btn icon-btn" onClick={() => onRun(plan)}>[ ▶ ]</button>
       <button className="btn icon-btn" onClick={() => onDelete(plan)}>[ × ]</button>
     </div>
@@ -128,13 +130,42 @@ function AddRow({ projects, onAdd }: AddRowProps) {
   );
 }
 
+const STORAGE_KEY = 'backlog-panel-size';
+
+function loadPanelSize() {
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    if (s) return JSON.parse(s) as { width: number; height: number };
+  } catch {}
+  return { width: 500, height: Math.round(window.innerHeight * 0.7) };
+}
+
 export default function PlansWidget() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [showDone, setShowDone] = useState(true);
+  const [panelSize, setPanelSize] = useState(loadPanelSize);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  function handleResizeMouseDown(e: React.MouseEvent) {
+    e.preventDefault();
+    let cur = panelSize;
+    const onMove = (ev: MouseEvent) => {
+      const w = Math.max(280, Math.min(window.innerWidth - 48, window.innerWidth - 24 - ev.clientX));
+      const h = Math.max(180, Math.min(window.innerHeight - 100, window.innerHeight - 68 - ev.clientY));
+      cur = { width: w, height: h };
+      setPanelSize(cur);
+    };
+    const onUp = () => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cur));
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -172,10 +203,12 @@ export default function PlansWidget() {
   async function handleRun(plan: Plan) {
     try { await api.timer.stop(); } catch {}
     await api.timer.start({ projectId: plan.project_id, description: plan.text });
+    navigate('/');
+  }
+
+  async function handleMarkDone(plan: Plan) {
     const { plan: updated } = await api.plans.update(plan.id, { done: true });
     setPlans((prev) => prev.map((p) => (p.id === plan.id ? updated : p)));
-    setOpen(false);
-    navigate('/');
   }
 
   async function handleRestore(plan: Plan) {
@@ -194,10 +227,11 @@ export default function PlansWidget() {
   return (
     <div className="plans-float" ref={panelRef}>
       {open && (
-        <div className="plans-panel">
+        <div className="plans-panel" style={{ width: panelSize.width, height: panelSize.height }}>
+          <div className="plans-resize-handle" onMouseDown={handleResizeMouseDown} />
           <div className="plans-panel-header">
             <span className="plans-panel-title">
-              BACKLOG&nbsp;
+              Plans&nbsp;
               <span className="plans-panel-count">
                 {openCount} open{doneCount > 0 ? ` · ${doneCount} done` : ''}
               </span>
@@ -226,6 +260,7 @@ export default function PlansWidget() {
                     plan={plan}
                     projects={projects}
                     onRun={handleRun}
+                    onMarkDone={handleMarkDone}
                     onUpdate={(id, patch) => setPlans((prev) => prev.map((p) => p.id === id ? { ...p, ...patch } : p))}
                     onDelete={handleDelete}
                   />
@@ -251,7 +286,7 @@ export default function PlansWidget() {
         className={`btn icon-btn plans-trigger${open ? ' active' : ''}`}
         onClick={() => setOpen((v) => !v)}
       >
-        [ backlog{openCount > 0 ? ` · ${openCount}` : ''} ]
+        [ plans{openCount > 0 ? ` · ${openCount}` : ''} ]
       </button>
     </div>
   );
