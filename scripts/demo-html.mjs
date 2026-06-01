@@ -14,7 +14,7 @@ const screenshots = [
 
 const figures = screenshots.map(({ file, caption }) => `
     <figure>
-      <img src="${file}" alt="${caption}">
+      <img src="${file}" alt="${caption}" onclick="openLightbox(this.src)" title="click to enlarge">
       <figcaption>${caption}</figcaption>
     </figure>`).join('');
 
@@ -48,7 +48,7 @@ const html = `<!DOCTYPE html>
       margin-top: 40px;
     }
     figure { border: 1px solid #000; }
-    figure img { width: 100%; display: block; }
+    figure img { width: 100%; display: block; cursor: zoom-in; }
     figcaption {
       padding: 8px 12px;
       border-top: 1px solid #000;
@@ -70,6 +70,36 @@ const html = `<!DOCTYPE html>
     @media (max-width: 640px) {
       .screenshots { grid-template-columns: 1fr; }
     }
+    .lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.92);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox img {
+      max-width: 92vw;
+      max-height: 92vh;
+      display: block;
+      border: 1px solid #333;
+    }
+    .lightbox-close {
+      position: fixed;
+      top: 20px;
+      right: 24px;
+      font-family: inherit;
+      font-size: 13px;
+      color: #fff;
+      background: none;
+      border: 1px solid #555;
+      padding: 4px 10px;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+    }
+    .lightbox-close:hover { border-color: #fff; }
   </style>
 </head>
 <body>
@@ -88,6 +118,24 @@ make prod</pre>
   </div>
 
   <p class="link"><a href="https://github.com/maplemap/tempo">→ github.com/maplemap/tempo</a></p>
+
+  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox()">[ × close ]</button>
+    <img id="lightbox-img" src="" alt="">
+  </div>
+
+  <script>
+    function openLightbox(src) {
+      document.getElementById('lightbox-img').src = src;
+      document.getElementById('lightbox').classList.add('open');
+      document.addEventListener('keydown', onKey);
+    }
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.remove('open');
+      document.removeEventListener('keydown', onKey);
+    }
+    function onKey(e) { if (e.key === 'Escape') closeLightbox(); }
+  </script>
 </body>
 </html>
 `;
