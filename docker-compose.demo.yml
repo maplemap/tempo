@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    container_name: tempo-demo
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.demo
+    volumes:
+      - ./backend/data/demo:/app/data
