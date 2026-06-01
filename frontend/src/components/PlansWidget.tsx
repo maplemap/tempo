@@ -142,7 +142,7 @@ function loadPanelSize() {
 
 export default function PlansWidget() {
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => localStorage.getItem('backlog-open') === '1');
   const [plans, setPlans] = useState<Plan[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [showDone, setShowDone] = useState(true);
@@ -166,6 +166,8 @@ export default function PlansWidget() {
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   }
+
+  useEffect(() => { localStorage.setItem('backlog-open', open ? '1' : '0'); }, [open]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
