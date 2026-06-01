@@ -600,13 +600,37 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 }
 
 .plans-panel {
-  width: 500px;
+  position: relative;
   border: 1px solid var(--hairline);
   background: var(--bg);
   box-shadow: 0 4px 20px rgba(0,0,0,0.15);
   display: flex;
   flex-direction: column;
-  max-height: 70vh;
+  max-width: calc(100vw - 24px);
+  min-width: 280px;
+  min-height: 180px;
+}
+
+.plans-resize-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 22px;
+  height: 22px;
+  cursor: nw-resize;
+  z-index: 10;
+}
+
+.plans-resize-handle::after {
+  content: '⣿';
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  font-size: 9px;
+  color: var(--muted);
+  opacity: 0.4;
+  pointer-events: none;
+  line-height: 1;
 }
 
 .plans-panel-header {
@@ -754,8 +778,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   }
 
   .plans-panel {
-    width: calc(100vw - 24px);
-    max-height: 60vh;
+    max-width: calc(100vw - 24px);
   }
 
   .plan-text { white-space: normal; }
