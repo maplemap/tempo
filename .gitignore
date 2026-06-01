@@ -10,3 +10,7 @@ backend/data/*.db-journal
 backend/data/*.db-wal
 backend/data/*.db-shm
 .superpowers/
+backend/data/demo.db
+backend/data/demo/
+docs/screenshots/
+docs/index.html
