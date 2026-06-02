@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Entry, Project } from '../lib/api';
 import { rangeForPeriod, fmtDayHeader, isoDateKey, fmtDuration } from '../lib/time';
+import { useMidnightRefresh } from '../lib/hooks';
 import EntryItem from '../components/EntryItem';
 
 type Period = 'week' | 'month' | 'all';
@@ -60,6 +61,8 @@ export default function EntriesPage() {
   async function refresh() {
     await fetchAndSet(period, allMonthsBack);
   }
+
+  useMidnightRefresh(() => fetchAndSet(period, allMonthsBack));
 
   async function loadMore() {
     const nextMonths = allMonthsBack + 2;

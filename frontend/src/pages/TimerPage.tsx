@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Entry, Project, TimerEntry } from '../lib/api';
 import { fmtClock, fmtDate, fmtDuration, fmtDayHeader, isoDateKey, rangeLastNDays, normalizeTimeInput } from '../lib/time';
+import { useMidnightRefresh } from '../lib/hooks';
 import EntryItem from '../components/EntryItem';
 import { renderDescription } from '../lib/renderDescription';
 
@@ -197,12 +198,10 @@ export default function TimerPage() {
     };
   }, []);
 
-  useEffect(() => {
-    const now = today;
-    const msToMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime() - now.getTime();
-    const id = setTimeout(() => { setToday(new Date()); void refresh(); }, msToMidnight);
-    return () => clearTimeout(id);
-  }, [today]);
+  useMidnightRefresh(() => {
+    setToday(new Date());
+    void refresh();
+  });
 
   useEffect(() => {
     if (!current || startInputFocused.current) return;
