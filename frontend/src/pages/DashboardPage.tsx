@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import type { ByCategoryStats } from '../lib/api';
 import { rangeForPeriod, fmtDuration } from '../lib/time';
+import { useMidnightRefresh } from '../lib/hooks';
 import AsciiBar from '../components/AsciiBar';
 
 type Period = 'day' | 'week' | 'month';
@@ -35,6 +36,12 @@ export default function DashboardPage() {
     setExpandedCats(new Set());
     setExpandedGroups(new Set());
   }, [period]);
+
+  useMidnightRefresh(() => {
+    const range = rangeForPeriod(period);
+    api.stats.get(range).then((data) => setStats(data as StatsData));
+    api.stats.byCategory(range).then((data) => setByCategory(data));
+  });
 
   function toggleCat(c: string) {
     setExpandedCats((prev) => {
