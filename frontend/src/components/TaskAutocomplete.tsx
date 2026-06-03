@@ -8,32 +8,32 @@ interface Props {
   entries: Entry[];
 }
 
+function buildSuggestion(text: string, entries: Entry[]): string {
+  if (!text) return '';
+  const seen = new Set<string>();
+  for (const e of entries) {
+    const desc = e.description;
+    if (!desc || seen.has(desc)) continue;
+    seen.add(desc);
+    if (desc.toLowerCase().startsWith(text.toLowerCase()) && desc.length > text.length) {
+      return desc;
+    }
+  }
+  return '';
+}
+
 export default function TaskAutocomplete({ value, onChange, onEnter, entries }: Props) {
   const [suggestion, setSuggestion] = useState('');
 
-  // Clear suggestion when value is cleared externally (e.g. after timer stop)
+  // Recompute suggestion whenever value or entries change
   useEffect(() => {
-    if (!value) setSuggestion('');
-  }, [value]);
-
-  function buildSuggestion(text: string): string {
-    if (!text) return '';
-    const seen = new Set<string>();
-    for (const e of entries) {
-      const desc = e.description;
-      if (!desc || seen.has(desc)) continue;
-      seen.add(desc);
-      if (desc.toLowerCase().startsWith(text.toLowerCase()) && desc.length > text.length) {
-        return desc;
-      }
-    }
-    return '';
-  }
+    setSuggestion(buildSuggestion(value, entries));
+  }, [value, entries]);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const v = e.target.value;
     onChange(v);
-    setSuggestion(buildSuggestion(v));
+    setSuggestion(buildSuggestion(v, entries));
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -44,6 +44,7 @@ export default function TaskAutocomplete({ value, onChange, onEnter, entries }: 
     } else if (e.key === 'Escape') {
       setSuggestion('');
     } else if (e.key === 'Enter') {
+      // Capture final before onChange: parent state update is async, onEnter reads this value directly
       const final = suggestion || value;
       if (suggestion) {
         onChange(suggestion);
