@@ -57,7 +57,10 @@ if (fs.existsSync(publicDir)) {
     server: { middlewareMode: true, hmr: { server: app.server } },
     appType: 'spa',
   });
-  app.use(vite.middlewares);
+  app.use((req: any, res: any, next: () => void) => {
+    if (req.url?.startsWith('/api/') || req.url === '/health') return next();
+    vite.middlewares(req, res, next);
+  });
   app.log.info('[dev] Vite middleware mounted — port 5173 not used');
 }
 
