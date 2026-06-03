@@ -6,6 +6,7 @@ import { fmtClock, fmtDate, fmtDuration, fmtDayHeader, isoDateKey, rangeLastNDay
 import { useMidnightRefresh } from '../lib/hooks';
 import EntryItem from '../components/EntryItem';
 import { renderDescription } from '../lib/renderDescription';
+import TaskAutocomplete from '../components/TaskAutocomplete';
 
 const FAVICON_SIZE   = 64;
 const FAVICON_CORNER = 14;
@@ -243,8 +244,8 @@ export default function TimerPage() {
     }
   }
 
-  async function start() {
-    const trimmed = taskText.trim();
+  async function start(overrideText?: string) {
+    const trimmed = (overrideText ?? taskText).trim();
     if (!trimmed) return;
     const pid = projectId ? Number(projectId) : null;
 
@@ -354,7 +355,7 @@ export default function TimerPage() {
         <div className="timer-display">00:00:00</div>
 
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-          <button className="btn solid" onClick={start}>[ START ]</button>
+          <button className="btn solid" onClick={() => void start()}>[ START ]</button>
         </div>
 
         <div className="timer-form">
@@ -376,12 +377,11 @@ export default function TimerPage() {
           </select>
 
           <span className="label">Task</span>
-          <input
-            className="input"
-            placeholder="e.g. review PR #1301"
+          <TaskAutocomplete
             value={taskText}
-            onChange={(e) => { setTaskText(e.target.value); }}
-            onKeyDown={(e) => { if (e.key === 'Enter') void start(); }}
+            onChange={setTaskText}
+            onEnter={(finalText) => void start(finalText)}
+            entries={entries}
           />
         </div>
 
