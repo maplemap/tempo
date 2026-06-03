@@ -152,7 +152,6 @@ export default function EntryItem({
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
         </select>
-        <CategoryBadge category={entry.category} manual={entry.category_manual} onChange={saveCategory} />
         <input
           className="entry-desc-input"
           value={description}
@@ -160,6 +159,7 @@ export default function EntryItem({
           onBlur={saveDescription}
           onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
         />
+        <CategoryBadge category={entry.category} manual={entry.category_manual} onChange={saveCategory} />
         <span className="entry-actions">
           <button className="btn icon-btn" onClick={restart}>[ ▶ ]</button>
           {confirmDelete

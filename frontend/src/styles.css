@@ -155,7 +155,7 @@ button {
 
 .entry-row {
   display: grid;
-  grid-template-columns: 110px 27px 74px 11ch 1fr auto auto;
+  grid-template-columns: 110px 27px 74px 1fr auto auto;
   gap: 12px;
   align-items: baseline;
   font-variant-numeric: tabular-nums;
