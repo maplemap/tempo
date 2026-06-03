@@ -19,6 +19,20 @@ function toTimeInput(iso: string | null | undefined): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+// YYYY-MM-DD — for internal comparison and applyDateInput
+function toDateInput(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// DD.MM.YYYY — for display in the text input
+function toDateDisplay(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+}
+
 function applyTimeInput(hhmm: string, originalIso: string): string {
   const d = new Date(originalIso);
   const [h, m] = hhmm.split(':').map(Number);
@@ -26,9 +40,27 @@ function applyTimeInput(hhmm: string, originalIso: string): string {
   return d.toISOString();
 }
 
+// Strict DD.MM.YYYY — partial input like "3.06.2026" returns null and is preserved in the field
+function parseDateInput(raw: string): string | null {
+  const m = raw.trim().match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (!m) return null;
+  const [, dd, mm, yyyy] = m;
+  const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+  if (isNaN(d.getTime())) return null;
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function applyDateInput(yyyymmdd: string, originalIso: string): string {
+  const d = new Date(originalIso);
+  const [year, month, day] = yyyymmdd.split('-').map(Number);
+  d.setFullYear(year, month - 1, day);
+  return d.toISOString();
+}
+
 export default function EntryItem({
-  entry, projects = [], onChange, onRestart,
+  entry, projects = [], onChange, onRestart, timeOnly = false,
 }: EntryItemProps) {
+  const [dateText, setDateText] = useState(() => toDateDisplay(entry.started_at));
   const [startText, setStartText] = useState(() => toTimeInput(entry.started_at));
   const [endText, setEndText] = useState(() => toTimeInput(entry.ended_at));
   const [projectId, setProjectId] = useState<string>(String(entry.project_id ?? ''));
@@ -38,6 +70,7 @@ export default function EntryItem({
   const errorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    setDateText(toDateDisplay(entry.started_at));
     setStartText(toTimeInput(entry.started_at));
     setEndText(toTimeInput(entry.ended_at));
     setProjectId(String(entry.project_id ?? ''));
@@ -48,6 +81,28 @@ export default function EntryItem({
     if (errorTimer.current) clearTimeout(errorTimer.current);
     setError(msg);
     errorTimer.current = setTimeout(() => setError(null), 3500);
+  }
+
+  async function saveDate() {
+    const parsed = parseDateInput(dateText);
+    if (!parsed) {
+      // Empty → reset; partial/invalid → preserve so user can complete it
+      if (!dateText.trim()) setDateText(toDateDisplay(entry.started_at));
+      return;
+    }
+    if (parsed === toDateInput(entry.started_at)) {
+      setDateText(toDateDisplay(entry.started_at)); // normalize display
+      return;
+    }
+    const startedAt = applyDateInput(parsed, entry.started_at);
+    const endedAt = entry.ended_at ? applyDateInput(parsed, entry.ended_at) : entry.ended_at;
+    try {
+      await api.entries.update(entry.id, { started_at: startedAt, ended_at: endedAt });
+      onChange?.();
+    } catch (e) {
+      showError(`! ${(e as Error).message}`);
+      setDateText(toDateDisplay(entry.started_at));
+    }
   }
 
   async function saveTime() {
@@ -122,7 +177,24 @@ export default function EntryItem({
 
   return (
     <div>
-      <div className="entry-row">
+      <div className={`entry-row${timeOnly ? ' entry-row--no-date' : ''}`}>
+        {!timeOnly && <input
+          className="entry-date-input"
+          value={dateText}
+          onChange={(e) => setDateText(e.target.value)}
+          onBlur={saveDate}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.currentTarget.blur(); return; }
+            if (e.key === 'Escape') { setDateText(toDateDisplay(entry.started_at)); e.currentTarget.blur(); return; }
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+              e.preventDefault();
+              const base = parseDateInput(dateText) ?? toDateInput(entry.started_at);
+              const d = new Date(base + 'T00:00:00');
+              d.setDate(d.getDate() + (e.key === 'ArrowUp' ? 1 : -1));
+              setDateText(toDateDisplay(d.toISOString()));
+            }
+          }}
+        />}
         <span className="time">
           <input
             className="entry-time-input"

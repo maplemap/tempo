@@ -155,7 +155,7 @@ button {
 
 .entry-row {
   display: grid;
-  grid-template-columns: 110px 27px 74px 1fr auto auto;
+  grid-template-columns: 84px 110px 27px 74px 1fr auto auto;
   gap: 12px;
   align-items: baseline;
   font-variant-numeric: tabular-nums;
@@ -167,9 +167,36 @@ button {
   border-bottom-color: var(--hairline);
 }
 
+.entry-row--no-date {
+  grid-template-columns: 110px 27px 74px 1fr auto auto;
+}
+
 .entry-actions {
   display: inline-flex;
   gap: 4px;
+}
+
+.entry-date-input {
+  width: 84px;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  font-size: 11px;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  padding: 0;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.entry-date-input:focus {
+  border-bottom-color: var(--hairline);
+  outline: none;
+  color: var(--fg);
+}
+
+.entry-date-input::-webkit-calendar-picker-indicator {
+  display: none;
 }
 
 .entry-time-input {
@@ -899,6 +926,12 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     padding: 10px;
     margin-bottom: 6px;
     border-bottom: 1px solid var(--hairline);
+  }
+
+  .entry-date-input {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
   }
 
   .entry-row .time {

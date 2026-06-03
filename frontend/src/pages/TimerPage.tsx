@@ -101,6 +101,7 @@ function PastDaySection({ entries, projects, collapsed, onToggle, onRefresh }: P
               projects={projects}
               onChange={onRefresh}
               onRestart={onRefresh}
+              timeOnly
             />
           ))}
         </div>
@@ -405,6 +406,7 @@ export default function TimerPage() {
               projects={projects}
               onChange={refresh}
               onRestart={refresh}
+              timeOnly
             />
           ))}
         </div>
