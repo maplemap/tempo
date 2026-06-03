@@ -103,6 +103,24 @@ button {
   outline: none;
 }
 
+.task-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 6px 0;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  pointer-events: none;
+  white-space: pre;
+  overflow: hidden;
+}
+
+.task-ghost-tail {
+  color: var(--muted);
+}
+
 .btn {
   display: inline-block;
   border: 1px solid var(--hairline);
