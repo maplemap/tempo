@@ -215,6 +215,7 @@ export default function EntryItem({
         <select
           className="entry-proj-select"
           value={projectId}
+          title={projects.find(p => String(p.id) === projectId)?.name || undefined}
           onChange={saveProject}
         >
           <option value="">—</option>
@@ -225,6 +226,7 @@ export default function EntryItem({
         <input
           className="entry-desc-input"
           value={description}
+          title={description || undefined}
           onChange={(e) => setDescription(e.target.value)}
           onBlur={saveDescription}
           onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}

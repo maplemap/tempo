@@ -60,6 +60,7 @@ function SortableItem({ plan, projects, onRun, onMarkDone, onUpdate, onDelete }:
       <select
         className="plan-inline-select"
         value={plan.project_id ?? ''}
+        title={plan.project_name ?? undefined}
         onChange={saveProject}
       >
         <option value="">—</option>
@@ -68,6 +69,7 @@ function SortableItem({ plan, projects, onRun, onMarkDone, onUpdate, onDelete }:
       <input
         className="plan-inline-input"
         value={text}
+        title={text || undefined}
         onChange={(e) => setText(e.target.value)}
         onBlur={saveText}
         onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
@@ -277,6 +279,7 @@ export default function PlansWidget() {
                 <select
                   className="plan-inline-select"
                   value={plan.project_id ?? ''}
+                  title={plan.project_name ?? undefined}
                   disabled
                 >
                   <option value="">—</option>
@@ -284,7 +287,7 @@ export default function PlansWidget() {
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
-                <input className="plan-inline-input" value={plan.text} disabled readOnly onChange={() => {}} />
+                <input className="plan-inline-input" value={plan.text} title={plan.text || undefined} disabled readOnly onChange={() => {}} />
                 <button className="btn icon-btn" onClick={() => void handleDelete(plan)}>[ × ]</button>
               </div>
             ))}
