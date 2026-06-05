@@ -173,7 +173,7 @@ button {
 
 .entry-row {
   display: grid;
-  grid-template-columns: 84px 110px 27px 74px 1fr auto auto;
+  grid-template-columns: 84px 110px 59px 74px 1fr auto auto;
   gap: 12px;
   align-items: baseline;
   font-variant-numeric: tabular-nums;
@@ -186,7 +186,7 @@ button {
 }
 
 .entry-row--no-date {
-  grid-template-columns: 110px 27px 74px 1fr auto auto;
+  grid-template-columns: 110px 64px 74px 1fr auto auto;
 }
 
 .entry-actions {
@@ -318,6 +318,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 
 .entry-row .dur {
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .entry-row .proj {

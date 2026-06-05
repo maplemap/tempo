@@ -120,14 +120,12 @@ export default function EntryItem({
     if (endText && normEnd && normEnd !== endText) setEndText(normEnd);
 
     const startedAt = applyTimeInput(normStart, entry.started_at);
-    const endedAt = normEnd
-      ? applyTimeInput(normEnd, entry.ended_at ?? entry.started_at)
-      : entry.ended_at;
-    if (endedAt && new Date(endedAt) <= new Date(startedAt)) {
-      showError('! end must be after start');
-      setStartText(toTimeInput(entry.started_at));
-      setEndText(toTimeInput(entry.ended_at));
-      return;
+    let endedAt: string | null | undefined = entry.ended_at;
+    if (normEnd) {
+      const d = new Date(applyTimeInput(normEnd, entry.started_at));
+      // Auto-advance one day if end ≤ start (overnight entry)
+      if (d <= new Date(startedAt)) d.setDate(d.getDate() + 1);
+      endedAt = d.toISOString();
     }
     try {
       await api.entries.update(entry.id, { started_at: startedAt, ended_at: endedAt });
