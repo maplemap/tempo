@@ -5,18 +5,18 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
   type DragEndEvent,
 } from '@dnd-kit/core';
 import {
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
-  arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
-import type { Plan, Project } from '../lib/api';
+import type { Plan, PlanCategory, Project } from '../lib/api';
 
 interface SortableItemProps {
   plan: Plan;
@@ -132,6 +132,94 @@ function AddRow({ projects, onAdd }: AddRowProps) {
   );
 }
 
+function SectionDroppable({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef } = useDroppable({ id });
+  return <div ref={setNodeRef} className="plan-section">{children}</div>;
+}
+
+interface CategoryHeaderProps {
+  category: PlanCategory;
+  count: number;
+  onRename: (id: number, name: string) => Promise<void>;
+  onDelete: (category: PlanCategory) => void;
+}
+
+function CategoryHeader({ category, count, onRename, onDelete }: CategoryHeaderProps) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(category.name);
+
+  useEffect(() => { setName(category.name); }, [category.name]);
+
+  async function save() {
+    setEditing(false);
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === category.name) { setName(category.name); return; }
+    await onRename(category.id, trimmed);
+  }
+
+  return (
+    <div className="plan-cat-header">
+      {editing ? (
+        <input
+          className="plan-cat-name-input"
+          value={name}
+          autoFocus
+          onChange={(e) => setName(e.target.value)}
+          onBlur={() => void save()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur();
+            if (e.key === 'Escape') { setName(category.name); setEditing(false); }
+          }}
+        />
+      ) : (
+        <span className="plan-cat-name" title={category.name} onClick={() => setEditing(true)}>
+          {category.name}
+        </span>
+      )}
+      <span className="plan-cat-count">{count}</span>
+      <button className="btn icon-btn" onClick={() => onDelete(category)}>[ × ]</button>
+    </div>
+  );
+}
+
+function AddCategoryRow({ onAdd }: { onAdd: (category: PlanCategory) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState('');
+
+  async function submit() {
+    const trimmed = name.trim();
+    setEditing(false);
+    setName('');
+    if (!trimmed) return;
+    const { category } = await api.planCategories.create(trimmed);
+    onAdd(category);
+  }
+
+  if (!editing) {
+    return (
+      <button className="btn icon-btn plan-cat-add" onClick={() => setEditing(true)}>
+        [ + category ]
+      </button>
+    );
+  }
+  return (
+    <div className="plan-cat-add-row">
+      <input
+        className="plan-cat-name-input"
+        placeholder="category name..."
+        value={name}
+        autoFocus
+        onChange={(e) => setName(e.target.value)}
+        onBlur={() => void submit()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); void submit(); }
+          if (e.key === 'Escape') { setName(''); setEditing(false); }
+        }}
+      />
+    </div>
+  );
+}
+
 const STORAGE_KEY = 'backlog-panel-size';
 
 function loadPanelSize() {
@@ -147,6 +235,7 @@ export default function PlansWidget() {
   const [open, setOpen] = useState(() => localStorage.getItem('backlog-open') === '1');
   const [plans, setPlans] = useState<Plan[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [categories, setCategories] = useState<PlanCategory[]>([]);
   const [showDone, setShowDone] = useState(true);
   const [panelSize, setPanelSize] = useState(loadPanelSize);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -174,12 +263,14 @@ export default function PlansWidget() {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   async function load() {
-    const [{ plans: p }, { projects: prjs }] = await Promise.all([
+    const [{ plans: p }, { projects: prjs }, { categories: cats }] = await Promise.all([
       api.plans.list(),
       api.projects.list(),
+      api.planCategories.list(),
     ]);
     setPlans(p);
     setProjects(prjs);
+    setCategories(cats);
   }
 
   useEffect(() => { void load(); }, []);
@@ -194,13 +285,70 @@ export default function PlansWidget() {
     (b.done_at ?? '').localeCompare(a.done_at ?? '')
   );
 
+  const sections: Array<{ key: string; category: PlanCategory | null; plans: Plan[] }> = [
+    { key: 'section-null', category: null, plans: openPlans.filter((p) => p.category_id == null) },
+    ...categories.map((c) => ({
+      key: `section-${c.id}`,
+      category: c,
+      plans: openPlans.filter((p) => p.category_id === c.id),
+    })),
+  ];
+
+  async function handleRenameCategory(id: number, name: string) {
+    const { category } = await api.planCategories.update(id, { name });
+    setCategories((prev) => prev.map((c) => (c.id === id ? category : c)));
+  }
+
+  async function handleDeleteCategory(cat: PlanCategory) {
+    await api.planCategories.remove(cat.id);
+    setCategories((prev) => prev.filter((c) => c.id !== cat.id));
+    setPlans((prev) => prev.map((p) => (p.category_id === cat.id ? { ...p, category_id: null } : p)));
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIdx = openPlans.findIndex((p) => p.id === active.id);
-    const newIdx = openPlans.findIndex((p) => p.id === over.id);
-    const reordered = arrayMove(openPlans, oldIdx, newIdx);
+    if (!over) return;
+    const activePlan = openPlans.find((p) => p.id === active.id);
+    if (!activePlan) return;
+
+    // Target: either a plan row (sortable) or a section container (droppable).
+    let targetCatId: number | null;
+    let overPlanId: number | null = null;
+    if (typeof over.id === 'string' && over.id.startsWith('section-')) {
+      const raw = over.id.slice('section-'.length);
+      targetCatId = raw === 'null' ? null : Number(raw);
+    } else {
+      const overPlan = openPlans.find((p) => p.id === over.id);
+      if (!overPlan) return;
+      targetCatId = overPlan.category_id;
+      overPlanId = overPlan.id;
+    }
+
+    const categoryChanged = targetCatId !== activePlan.category_id;
+    if (active.id === over.id && !categoryChanged) return;
+
+    // Rebuild the flat open list: remove, retag, insert.
+    const without = openPlans.filter((p) => p.id !== activePlan.id);
+    const moved = { ...activePlan, category_id: targetCatId };
+    let insertIdx: number;
+    if (overPlanId != null) {
+      insertIdx = without.findIndex((p) => p.id === overPlanId);
+      const oldIdx = openPlans.findIndex((p) => p.id === activePlan.id);
+      const overIdx = openPlans.findIndex((p) => p.id === overPlanId);
+      if (oldIdx < overIdx) insertIdx += 1; // dragging downward → place after the target
+    } else {
+      insertIdx = without.length; // dropped on a section (likely empty) → append
+    }
+    const inserted = [...without.slice(0, insertIdx), moved, ...without.slice(insertIdx)];
+
+    // Normalize global order to match display order: uncategorized, then categories.
+    const sectionOrder: Array<number | null> = [null, ...categories.map((c) => c.id)];
+    const reordered = sectionOrder.flatMap((catId) => inserted.filter((p) => p.category_id === catId));
+
     setPlans([...reordered, ...donePlans]);
+    if (categoryChanged) {
+      api.plans.update(activePlan.id, { category_id: targetCatId }).catch(() => void load());
+    }
     api.plans.reorder(reordered.map((p) => p.id)).catch(() => void load());
   }
 
@@ -257,20 +405,34 @@ export default function PlansWidget() {
             />
 
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={openPlans.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-                {openPlans.map((plan) => (
-                  <SortableItem
-                    key={plan.id}
-                    plan={plan}
-                    projects={projects}
-                    onRun={handleRun}
-                    onMarkDone={handleMarkDone}
-                    onUpdate={(id, patch) => setPlans((prev) => prev.map((p) => p.id === id ? { ...p, ...patch } : p))}
-                    onDelete={handleDelete}
-                  />
-                ))}
-              </SortableContext>
+              {sections.map((section) => (
+                <SectionDroppable key={section.key} id={section.key}>
+                  {section.category && (
+                    <CategoryHeader
+                      category={section.category}
+                      count={section.plans.length}
+                      onRename={handleRenameCategory}
+                      onDelete={(c) => void handleDeleteCategory(c)}
+                    />
+                  )}
+                  <SortableContext items={section.plans.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                    {section.plans.map((plan) => (
+                      <SortableItem
+                        key={plan.id}
+                        plan={plan}
+                        projects={projects}
+                        onRun={handleRun}
+                        onMarkDone={handleMarkDone}
+                        onUpdate={(id, patch) => setPlans((prev) => prev.map((p) => p.id === id ? { ...p, ...patch } : p))}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                  </SortableContext>
+                </SectionDroppable>
+              ))}
             </DndContext>
+
+            <AddCategoryRow onAdd={(category) => setCategories((prev) => [...prev, category])} />
 
             {showDone && donePlans.map((plan) => (
               <div key={plan.id} className="plan-row plan-row--done">
