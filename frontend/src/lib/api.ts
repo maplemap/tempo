@@ -31,7 +31,11 @@ export interface Project {
 export interface SyncStateRow { source: string; last_synced_at: string | null; last_error: string | null; }
 export interface Plan {
   id: number; project_id: number | null; project_name: string | null;
+  category_id: number | null;
   text: string; position: number; done: 0 | 1; done_at: string | null; created_at: string;
+}
+export interface PlanCategory {
+  id: number; name: string; position: number; created_at: string;
 }
 export interface ByCategoryStats {
   range: { from: string; to: string };
@@ -137,13 +141,22 @@ export const api = {
   },
   plans: {
     list:    () => request<{ plans: Plan[] }>('/plans'),
-    create:  (body: { project_id?: number | null; text: string }) =>
+    create:  (body: { project_id?: number | null; category_id?: number | null; text: string }) =>
       request<{ plan: Plan }>('/plans', { method: 'POST', body }),
-    update:  (id: number, body: { done?: boolean; text?: string; project_id?: number | null }) =>
+    update:  (id: number, body: { done?: boolean; text?: string; project_id?: number | null; category_id?: number | null }) =>
       request<{ plan: Plan }>(`/plans/${id}`, { method: 'PATCH', body }),
     reorder: (ids: number[]) =>
       request<{ ok: boolean }>('/plans/reorder', { method: 'PATCH', body: { ids } }),
     remove:  (id: number) =>
       request<{ ok: boolean }>(`/plans/${id}`, { method: 'DELETE' })
+  },
+  planCategories: {
+    list:   () => request<{ categories: PlanCategory[] }>('/plan-categories'),
+    create: (name: string) =>
+      request<{ category: PlanCategory }>('/plan-categories', { method: 'POST', body: { name } }),
+    update: (id: number, body: { name?: string; position?: number }) =>
+      request<{ category: PlanCategory }>(`/plan-categories/${id}`, { method: 'PATCH', body }),
+    remove: (id: number) =>
+      request<{ ok: boolean }>(`/plan-categories/${id}`, { method: 'DELETE' })
   }
 };
