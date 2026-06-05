@@ -3,6 +3,7 @@ import { api } from '../lib/api';
 import { fmtDuration, normalizeTimeInput } from '../lib/time';
 import ConfirmInline from './ConfirmInline';
 import CategoryBadge from './CategoryBadge';
+import { renderDescription } from '../lib/renderDescription';
 import type { Entry, Project, Category } from '../lib/api';
 
 interface EntryItemProps {
@@ -65,6 +66,7 @@ export default function EntryItem({
   const [endText, setEndText] = useState(() => toTimeInput(entry.ended_at));
   const [projectId, setProjectId] = useState<string>(String(entry.project_id ?? ''));
   const [description, setDescription] = useState(entry.description ?? '');
+  const [editingDesc, setEditingDesc] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const errorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -223,15 +225,26 @@ export default function EntryItem({
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
         </select>
-        <input
-          className="entry-desc-input"
-          value={description}
-          title={description || undefined}
-          onChange={(e) => setDescription(e.target.value)}
-          onBlur={saveDescription}
-          onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-        />
         <CategoryBadge category={entry.category} manual={entry.category_manual} onChange={saveCategory} />
+        {editingDesc
+          ? <input
+              autoFocus
+              className="entry-desc-input"
+              value={description}
+              title={description || undefined}
+              onChange={(e) => setDescription(e.target.value)}
+              onBlur={() => { setEditingDesc(false); void saveDescription(); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+            />
+          : <span
+              className="entry-desc-input"
+              style={{ cursor: 'text', display: 'block', whiteSpace: 'nowrap' }}
+              title={description || undefined}
+              onClick={() => setEditingDesc(true)}
+            >
+              {renderDescription(description, { links: entry.links, githubRepo: entry.github_repo })}
+            </span>
+        }
         <span className="entry-actions">
           <button className="btn icon-btn" onClick={restart}>[ ▶ ]</button>
           {confirmDelete
