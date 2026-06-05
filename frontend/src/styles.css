@@ -103,6 +103,24 @@ button {
   outline: none;
 }
 
+.task-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 6px 0;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  pointer-events: none;
+  white-space: pre;
+  overflow: hidden;
+}
+
+.task-ghost-tail {
+  color: var(--muted);
+}
+
 .btn {
   display: inline-block;
   border: 1px solid var(--hairline);
@@ -155,7 +173,7 @@ button {
 
 .entry-row {
   display: grid;
-  grid-template-columns: 110px 27px 74px 11ch 1fr auto auto;
+  grid-template-columns: 84px 110px 59px 74px 1fr auto auto;
   gap: 12px;
   align-items: baseline;
   font-variant-numeric: tabular-nums;
@@ -167,9 +185,36 @@ button {
   border-bottom-color: var(--hairline);
 }
 
+.entry-row--no-date {
+  grid-template-columns: 110px 64px 74px 1fr auto auto;
+}
+
 .entry-actions {
   display: inline-flex;
   gap: 4px;
+}
+
+.entry-date-input {
+  width: 84px;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  font-size: 11px;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  padding: 0;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.entry-date-input:focus {
+  border-bottom-color: var(--hairline);
+  outline: none;
+  color: var(--fg);
+}
+
+.entry-date-input::-webkit-calendar-picker-indicator {
+  display: none;
 }
 
 .entry-time-input {
@@ -273,6 +318,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 
 .entry-row .dur {
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .entry-row .proj {
@@ -658,16 +704,28 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   border-bottom: 1px solid #eee;
 }
 
+.plan-checkbox {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: var(--accent, #555);
+}
+
 .plan-handle {
   cursor: grab;
   color: var(--muted);
   font-size: 14px;
+  width: 14px;
   flex-shrink: 0;
   touch-action: none;
   line-height: 1;
 }
 
 .plan-handle:active { cursor: grabbing; }
+
+.plan-handle--disabled,
+.plan-handle--disabled:active { cursor: default; opacity: 0.6; }
 
 .plan-text {
   flex: 1;
@@ -887,6 +945,12 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     padding: 10px;
     margin-bottom: 6px;
     border-bottom: 1px solid var(--hairline);
+  }
+
+  .entry-date-input {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
   }
 
   .entry-row .time {

@@ -55,10 +55,12 @@ function SortableItem({ plan, projects, onRun, onMarkDone, onUpdate, onDelete }:
       className="plan-row"
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
     >
+      <input type="checkbox" className="plan-checkbox" checked={false} onChange={() => onMarkDone(plan)} />
       <span className="plan-handle" {...attributes} {...listeners}>⠿</span>
       <select
         className="plan-inline-select"
         value={plan.project_id ?? ''}
+        title={plan.project_name ?? undefined}
         onChange={saveProject}
       >
         <option value="">—</option>
@@ -67,11 +69,11 @@ function SortableItem({ plan, projects, onRun, onMarkDone, onUpdate, onDelete }:
       <input
         className="plan-inline-input"
         value={text}
+        title={text || undefined}
         onChange={(e) => setText(e.target.value)}
         onBlur={saveText}
         onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
       />
-      <button className="btn icon-btn" onClick={() => onMarkDone(plan)}>[ ✓ ]</button>
       <button className="btn icon-btn" onClick={() => onRun(plan)}>[ ▶ ]</button>
       <button className="btn icon-btn" onClick={() => onDelete(plan)}>[ × ]</button>
     </div>
@@ -272,11 +274,20 @@ export default function PlansWidget() {
 
             {showDone && donePlans.map((plan) => (
               <div key={plan.id} className="plan-row plan-row--done">
-                <span className="plan-text">
-                  {plan.project_name && <span className="plan-proj">{plan.project_name} · </span>}
-                  {plan.text}
-                </span>
-                <button className="btn icon-btn" onClick={() => void handleRestore(plan)}>[ ↩ ]</button>
+                <input type="checkbox" className="plan-checkbox" checked={true} onChange={() => void handleRestore(plan)} />
+                <span className="plan-handle plan-handle--disabled">⠿</span>
+                <select
+                  className="plan-inline-select"
+                  value={plan.project_id ?? ''}
+                  title={plan.project_name ?? undefined}
+                  disabled
+                >
+                  <option value="">—</option>
+                  {projects.filter((p) => !p.archived || p.id === plan.project_id).map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                <input className="plan-inline-input" value={plan.text} title={plan.text || undefined} disabled readOnly onChange={() => {}} />
                 <button className="btn icon-btn" onClick={() => void handleDelete(plan)}>[ × ]</button>
               </div>
             ))}

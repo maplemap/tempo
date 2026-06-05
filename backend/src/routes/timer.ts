@@ -50,6 +50,17 @@ const closeAllOpen = db.prepare<CloseAllParams>(`
   WHERE ended_at IS NULL
 `);
 
+function midnightsBetween(start: Date, end: Date): Date[] {
+  const midnights: Date[] = [];
+  const cursor = new Date(start);
+  cursor.setHours(24, 0, 0, 0);
+  while (cursor < end) {
+    midnights.push(new Date(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return midnights;
+}
+
 export default async function timerRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.addHook('preHandler', requireAuth);
 
@@ -85,8 +96,43 @@ export default async function timerRoutes(fastify: FastifyInstance): Promise<voi
     const open = getOpen.get();
     if (!open) return { ok: true, entryId: null, alreadyStopped: true };
     const endedAt = nowIso();
-    closeEntry.run({ endedAt, duration: diffSeconds(open.started_at, endedAt), id: open.id });
+
+    const midnights = midnightsBetween(new Date(open.started_at), new Date(endedAt));
+
+    if (midnights.length === 0) {
+      closeEntry.run({ endedAt, duration: diffSeconds(open.started_at, endedAt), id: open.id });
+      await autoLinkPRs(open.id, open.description, open.github_repo).catch(() => {});
+      return { ok: true, entryId: open.id };
+    }
+
+    const category = categorizeEntry(open.description ?? '');
+    const createdIds: number[] = [];
+
+    db.transaction(() => {
+      const firstMidnight = midnights[0].toISOString();
+      closeEntry.run({ endedAt: firstMidnight, duration: diffSeconds(open.started_at, firstMidnight), id: open.id });
+
+      for (let i = 0; i < midnights.length - 1; i++) {
+        const segStart = midnights[i].toISOString();
+        const segEnd = midnights[i + 1].toISOString();
+        const r = insertEntry.run({ projectId: open.project_id, description: open.description ?? '', startedAt: segStart, category });
+        const id = Number(r.lastInsertRowid);
+        closeEntry.run({ endedAt: segEnd, duration: diffSeconds(segStart, segEnd), id });
+        createdIds.push(id);
+      }
+
+      const lastStart = midnights[midnights.length - 1].toISOString();
+      const r = insertEntry.run({ projectId: open.project_id, description: open.description ?? '', startedAt: lastStart, category });
+      const lastId = Number(r.lastInsertRowid);
+      closeEntry.run({ endedAt, duration: diffSeconds(lastStart, endedAt), id: lastId });
+      createdIds.push(lastId);
+    })();
+
     await autoLinkPRs(open.id, open.description, open.github_repo).catch(() => {});
-    return { ok: true, entryId: open.id };
+    for (const id of createdIds) {
+      await autoLinkPRs(id, open.description, open.github_repo).catch(() => {});
+    }
+
+    return { ok: true, entryId: createdIds[createdIds.length - 1] };
   });
 }

@@ -13,4 +13,3 @@ services:
     command: npm run dev
     environment:
       NODE_ENV: development
-      VITE_UPSTREAM: http://localhost:5173

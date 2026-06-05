@@ -1,5 +1,7 @@
 node_modules/
 dist/
+frontend/.vite/
+frontend/vite.config.js.timestamp-*.mjs
 build/
 .env
 .env.local

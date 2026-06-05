@@ -1,7 +1,7 @@
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
-import fastifyHttpProxy from '@fastify/http-proxy';
+import middie from '@fastify/middie';
 import cron from 'node-cron';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -39,7 +39,6 @@ await app.register(githubRoutes,  { prefix: '/api/github' });
 await app.register(plansRoutes,   { prefix: '/api/plans' });
 
 const publicDir = path.join(__dirname, '..', 'public');
-const viteUpstream = process.env['VITE_UPSTREAM'] ?? 'http://localhost:5173';
 
 if (fs.existsSync(publicDir)) {
   await app.register(fastifyStatic, { root: publicDir, prefix: '/' });
@@ -51,14 +50,18 @@ if (fs.existsSync(publicDir)) {
     return reply.sendFile('index.html');
   });
 } else {
-  await app.register(fastifyHttpProxy, {
-    upstream: viteUpstream,
-    prefix: '/',
-    rewritePrefix: '/',
-    websocket: true,
-    http2: false
+  await app.register(middie);
+  const { createServer: createViteServer } = await import('vite');
+  const vite = await createViteServer({
+    root: new URL('../../frontend', import.meta.url).pathname,
+    server: { middlewareMode: true, hmr: { server: app.server } },
+    appType: 'spa',
   });
-  app.log.info(`[dev] proxying non-/api requests to ${viteUpstream}`);
+  app.use((req: any, res: any, next: () => void) => {
+    if (req.url?.startsWith('/api/') || req.url === '/health') return next();
+    vite.middlewares(req, res, next);
+  });
+  app.log.info('[dev] Vite middleware mounted — port 5173 not used');
 }
 
 try {
