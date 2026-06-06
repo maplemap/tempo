@@ -52,6 +52,7 @@ export interface ByCategoryStats {
         ended_at: string | null;
         duration_seconds: number;
         description: string | null;
+        links: Array<{ url: string; label: string | null }>;
       }>;
     }>;
   }>;

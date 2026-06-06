@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react';
-import type { EntryLink } from './api';
 
 interface RenderOptions {
-  links?: EntryLink[];
+  links?: Array<{ url: string; label: string | null }>;
   githubRepo?: string | null;
 }
 

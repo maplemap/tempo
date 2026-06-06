@@ -45,8 +45,7 @@ export async function autoLinkPRs(
   description: string | null | undefined,
   githubRepo: string | null | undefined
 ): Promise<void> {
-  const token = env.github.token;
-  if (!token || !githubRepo || !description) return;
+  if (!githubRepo || !description) return;
 
   const refs = extractPRRefs(description);
   const existingAutoLinks = getAutoLinks.all(entryId);
@@ -57,12 +56,16 @@ export async function autoLinkPRs(
     if (!wantedUrls.has(link.url)) deleteLinkById.run(link.id);
   }
 
+  const token = env.github.token;
   const existingUrls = new Set(existingAutoLinks.map((l: { id: number; url: string }) => l.url));
   for (const ref of refs) {
     const url = `https://github.com/${githubRepo}/pull/${ref}`;
     if (existingUrls.has(url)) continue;
-    const pr = await fetchPR(githubRepo, ref, token);
-    if (!pr) continue;
-    insertLink.run(entryId, url, `PR #${ref}: ${pr.title}`);
+    let label = `PR #${ref}`;
+    if (token) {
+      const pr = await fetchPR(githubRepo, ref, token);
+      if (pr) label = `PR #${ref}: ${pr.title}`;
+    }
+    insertLink.run(entryId, url, label);
   }
 }

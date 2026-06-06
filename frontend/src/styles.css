@@ -575,23 +575,29 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 /* Dashboard */
 .dash-row {
   display: grid;
-  grid-template-columns: 1fr 70px 2fr 50px;
+  grid-template-columns: minmax(0, 2fr) 70px minmax(0, 2fr) 50px;
   gap: 12px;
   font-variant-numeric: tabular-nums;
   padding: 4px 0;
-  align-items: baseline;
+  align-items: center;
 }
 
 .dash-row .name {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .bar {
   font-family: var(--font);
   letter-spacing: -0.05em;
-  white-space: pre;
+  display: flex;
+  width: 100%;
+  overflow: hidden;
 }
 
 .section-title {
@@ -865,7 +871,6 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  border-bottom: 1px solid var(--hairline);
 }
 
 .plan-cat-count {
