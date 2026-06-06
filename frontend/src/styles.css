@@ -842,6 +842,11 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   min-height: 8px; /* drop target for empty sections */
 }
 
+.plan-section--over {
+  outline: 1px dashed var(--hairline);
+  outline-offset: -1px;
+}
+
 .plan-cat-header {
   display: flex;
   align-items: center;
@@ -849,6 +854,13 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   margin-top: 12px;
   padding: 2px 0;
   border-bottom: 1px solid var(--hairline);
+}
+
+.plan-cat-toggle {
+  padding: 0 2px;
+  font-size: 10px;
+  border: none;
+  flex-shrink: 0;
 }
 
 .plan-cat-name {

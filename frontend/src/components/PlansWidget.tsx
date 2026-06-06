@@ -133,18 +133,20 @@ function AddRow({ projects, onAdd }: AddRowProps) {
 }
 
 function SectionDroppable({ id, children }: { id: string; children: React.ReactNode }) {
-  const { setNodeRef } = useDroppable({ id });
-  return <div ref={setNodeRef} className="plan-section">{children}</div>;
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return <div ref={setNodeRef} className={`plan-section${isOver ? ' plan-section--over' : ''}`}>{children}</div>;
 }
 
 interface CategoryHeaderProps {
   category: PlanCategory;
   count: number;
+  collapsed: boolean;
+  onToggle: () => void;
   onRename: (id: number, name: string) => Promise<void>;
   onDelete: (category: PlanCategory) => void;
 }
 
-function CategoryHeader({ category, count, onRename, onDelete }: CategoryHeaderProps) {
+function CategoryHeader({ category, count, collapsed, onToggle, onRename, onDelete }: CategoryHeaderProps) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(category.name);
 
@@ -159,6 +161,9 @@ function CategoryHeader({ category, count, onRename, onDelete }: CategoryHeaderP
 
   return (
     <div className="plan-cat-header">
+      <button className="plan-cat-toggle btn icon-btn" onClick={onToggle}>
+        {collapsed ? '▸' : '▾'}
+      </button>
       {editing ? (
         <input
           className="plan-cat-name-input"
@@ -221,6 +226,7 @@ function AddCategoryRow({ onAdd }: { onAdd: (category: PlanCategory) => void }) 
 }
 
 const STORAGE_KEY = 'backlog-panel-size';
+const COLLAPSED_KEY = 'backlog-collapsed-cats';
 
 function loadPanelSize() {
   try {
@@ -228,6 +234,18 @@ function loadPanelSize() {
     if (s) return JSON.parse(s) as { width: number; height: number };
   } catch {}
   return { width: 500, height: Math.round(window.innerHeight * 0.7) };
+}
+
+function loadCollapsed(): Set<number> {
+  try {
+    const s = localStorage.getItem(COLLAPSED_KEY);
+    if (s) return new Set(JSON.parse(s) as number[]);
+  } catch {}
+  return new Set();
+}
+
+function saveCollapsed(set: Set<number>) {
+  localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...set]));
 }
 
 export default function PlansWidget() {
@@ -238,6 +256,16 @@ export default function PlansWidget() {
   const [categories, setCategories] = useState<PlanCategory[]>([]);
   const [showDone, setShowDone] = useState(true);
   const [panelSize, setPanelSize] = useState(loadPanelSize);
+  const [collapsed, setCollapsed] = useState<Set<number>>(loadCollapsed);
+
+  function toggleCollapsed(id: number) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      saveCollapsed(next);
+      return next;
+    });
+  }
   const panelRef = useRef<HTMLDivElement>(null);
 
   function handleResizeMouseDown(e: React.MouseEvent) {
@@ -405,31 +433,38 @@ export default function PlansWidget() {
             />
 
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              {sections.map((section) => (
-                <SectionDroppable key={section.key} id={section.key}>
-                  {section.category && (
-                    <CategoryHeader
-                      category={section.category}
-                      count={section.plans.length}
-                      onRename={handleRenameCategory}
-                      onDelete={(c) => void handleDeleteCategory(c)}
-                    />
-                  )}
-                  <SortableContext items={section.plans.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-                    {section.plans.map((plan) => (
-                      <SortableItem
-                        key={plan.id}
-                        plan={plan}
-                        projects={projects}
-                        onRun={handleRun}
-                        onMarkDone={handleMarkDone}
-                        onUpdate={(id, patch) => setPlans((prev) => prev.map((p) => p.id === id ? { ...p, ...patch } : p))}
-                        onDelete={handleDelete}
+              {sections.map((section) => {
+                const isCollapsed = section.category != null && collapsed.has(section.category.id);
+                return (
+                  <SectionDroppable key={section.key} id={section.key}>
+                    {section.category && (
+                      <CategoryHeader
+                        category={section.category}
+                        count={section.plans.length}
+                        collapsed={isCollapsed}
+                        onToggle={() => toggleCollapsed(section.category!.id)}
+                        onRename={handleRenameCategory}
+                        onDelete={(c) => void handleDeleteCategory(c)}
                       />
-                    ))}
-                  </SortableContext>
-                </SectionDroppable>
-              ))}
+                    )}
+                    {!isCollapsed && (
+                      <SortableContext items={section.plans.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                        {section.plans.map((plan) => (
+                          <SortableItem
+                            key={plan.id}
+                            plan={plan}
+                            projects={projects}
+                            onRun={handleRun}
+                            onMarkDone={handleMarkDone}
+                            onUpdate={(id, patch) => setPlans((prev) => prev.map((p) => p.id === id ? { ...p, ...patch } : p))}
+                            onDelete={handleDelete}
+                          />
+                        ))}
+                      </SortableContext>
+                    )}
+                  </SectionDroppable>
+                );
+              })}
             </DndContext>
 
             <AddCategoryRow onAdd={(category) => setCategories((prev) => [...prev, category])} />
