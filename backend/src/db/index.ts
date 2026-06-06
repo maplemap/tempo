@@ -92,6 +92,10 @@ if (planFkCount > 0) {
   console.log('[db] rebuilt plans without tasks FK');
 }
 
+// Must stay AFTER the plans rebuild above: the rebuild's INSERT INTO plans_new
+// SELECT * assumes the old column set.
+try { db.exec(`ALTER TABLE plans ADD COLUMN category_id INTEGER REFERENCES plan_categories(id) ON DELETE SET NULL`); } catch {}
+
 // Backfill: categorize all existing entries on first run after the migration.
 const categorized = (db.prepare(
   `SELECT COUNT(*) AS n FROM time_entries WHERE category != 'task'`

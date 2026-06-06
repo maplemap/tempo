@@ -81,6 +81,14 @@ const entriesForByCategory = db.prepare<RangeParams, ByCategoryRow>(`
   ORDER BY e.started_at DESC
 `);
 
+interface LinkRow { entry_id: number; url: string; label: string | null; }
+const linksForRange = db.prepare<RangeParams, LinkRow>(`
+  SELECT el.entry_id, el.url, el.label
+  FROM entry_links el
+  INNER JOIN time_entries te ON te.id = el.entry_id
+  WHERE te.started_at >= @fromIso AND te.started_at < @toIso AND te.duration_seconds IS NOT NULL
+`);
+
 function extractRefs(description: string | null): string[] {
   if (!description) return [];
   const matches = description.match(/(?:PR|pr|#)\s*#?(\d+)/g) ?? [];
@@ -143,7 +151,8 @@ export default async function statsRoutes(fastify: FastifyInstance): Promise<voi
   fastify.get<{ Querystring: { from?: string; to?: string } }>('/by-category', async (req) => {
     const { from, to } = req.query;
     const { fromIso, toIso } = parseRange(from, to);
-    const rows = entriesForByCategory.all({ fromIso, toIso });
+    const args: RangeParams = { fromIso, toIso };
+    const rows = entriesForByCategory.all(args);
 
     interface EntryOut {
       id: number;
@@ -151,6 +160,7 @@ export default async function statsRoutes(fastify: FastifyInstance): Promise<voi
       ended_at: string | null;
       duration_seconds: number;
       description: string | null;
+      links: { url: string; label: string | null }[];
     }
     interface GroupOut {
       description: string | null;
@@ -161,6 +171,12 @@ export default async function statsRoutes(fastify: FastifyInstance): Promise<voi
       category: Category;
       total: number;
       groups: GroupOut[];
+    }
+
+    const linksByEntry = new Map<number, { url: string; label: string | null }[]>();
+    for (const l of linksForRange.all(args)) {
+      if (!linksByEntry.has(l.entry_id)) linksByEntry.set(l.entry_id, []);
+      linksByEntry.get(l.entry_id)!.push({ url: l.url, label: l.label });
     }
 
     const catMap = new Map<Category, Map<string, GroupOut>>();
@@ -182,6 +198,7 @@ export default async function statsRoutes(fastify: FastifyInstance): Promise<voi
         ended_at: r.ended_at,
         duration_seconds: r.duration_seconds,
         description: r.description,
+        links: linksByEntry.get(r.entry_id) ?? [],
       });
     }
 

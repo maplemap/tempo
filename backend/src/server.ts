@@ -19,6 +19,7 @@ import statsRoutes from './routes/stats.js';
 import syncRoutes, { runGitHubSync } from './routes/sync.js';
 import githubRoutes from './routes/github.js';
 import plansRoutes from './routes/plans.js';
+import planCategoriesRoutes from './routes/plan-categories.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -37,6 +38,7 @@ await app.register(statsRoutes,   { prefix: '/api/stats' });
 await app.register(syncRoutes,    { prefix: '/api/sync' });
 await app.register(githubRoutes,  { prefix: '/api/github' });
 await app.register(plansRoutes,   { prefix: '/api/plans' });
+await app.register(planCategoriesRoutes, { prefix: '/api/plan-categories' });
 
 const publicDir = path.join(__dirname, '..', 'public');
 

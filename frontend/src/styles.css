@@ -575,23 +575,29 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 /* Dashboard */
 .dash-row {
   display: grid;
-  grid-template-columns: 1fr 70px 2fr 50px;
+  grid-template-columns: minmax(0, 2fr) 70px minmax(0, 2fr) 50px;
   gap: 12px;
   font-variant-numeric: tabular-nums;
   padding: 4px 0;
-  align-items: baseline;
+  align-items: center;
 }
 
 .dash-row .name {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .bar {
   font-family: var(--font);
   letter-spacing: -0.05em;
-  white-space: pre;
+  display: flex;
+  width: 100%;
+  overflow: hidden;
 }
 
 .section-title {
@@ -802,7 +808,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 .plan-add-row {
   display: flex;
   gap: 6px;
-  align-items: center;
+  align-items: flex-end;
   padding: 4px 0 6px;
   margin-bottom: 4px;
   margin-left: 18px;
@@ -817,7 +823,6 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   font-size: 11px;
   padding: 2px 0;
   color: var(--muted);
-  margin-top: 4px;
 }
 
 .plan-add-input {
@@ -831,6 +836,57 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 
 .plan-add-input:focus {
   color: var(--fg);
+}
+
+.plan-section {
+  min-height: 8px; /* drop target for empty sections */
+}
+
+.plan-cat-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.plan-cat-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: text;
+}
+
+.plan-cat-name-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.plan-cat-count {
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.plan-cat-add {
+  margin-top: 12px;
+}
+
+.plan-cat-add-row {
+  display: flex;
+  margin-top: 12px;
+  padding: 2px 0;
 }
 
 @media (max-width: 600px) {

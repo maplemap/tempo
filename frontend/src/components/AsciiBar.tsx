@@ -1,10 +1,15 @@
 interface AsciiBarProps {
   ratio: number;
-  width?: number;
 }
 
-export default function AsciiBar({ ratio, width = 20 }: AsciiBarProps) {
+const N = 100;
+
+export default function AsciiBar({ ratio }: AsciiBarProps) {
   const r = Math.max(0, Math.min(1, ratio || 0));
-  const filled = Math.round(r * width);
-  return <span className="bar">{'█'.repeat(filled)}{'░'.repeat(width - filled)}</span>;
+  return (
+    <span className="bar">
+      <span style={{ overflow: 'hidden', whiteSpace: 'pre', flexShrink: 0, width: `${r * 100}%` }}>{'█'.repeat(N)}</span>
+      <span style={{ overflow: 'hidden', whiteSpace: 'pre', flex: 1 }}>{'░'.repeat(N)}</span>
+    </span>
+  );
 }
