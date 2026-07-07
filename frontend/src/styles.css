@@ -50,7 +50,7 @@ button {
 .app {
   max-width: 900px;
   margin: 0 auto;
-  padding: 24px 24px 96px;
+  padding: 24px 24px 130px;
   min-height: 100%;
 }
 
@@ -150,17 +150,51 @@ button {
 }
 
 .timer-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 56px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
-  text-align: center;
   margin: 24px 0;
+}
+
+.running-dot-slot {
+  width: 26px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.running-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 14px;
+  border-radius: 50%;
+  background: #fe5f33;
+  animation: running-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes running-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.running-info {
+  grid-row: 1 / -1;
+  grid-column: 1 / -1;
+  align-self: center;
+  text-align: center;
+  font-size: 25px;
 }
 
 .timer-form {
   display: grid;
   grid-template-columns: 100px 1fr;
+  grid-template-rows: auto auto;
   gap: 12px 16px;
   align-items: baseline;
 }
@@ -348,18 +382,23 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   opacity: 0.7;
 }
 
-.nav {
+.footer {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+}
+
+.nav {
   background: var(--bg);
   border-top: 1px solid var(--hairline);
   padding: 12px 24px;
   display: flex;
   justify-content: center;
   gap: 12px;
-  z-index: 10;
 }
 
 .nav .btn {
@@ -372,165 +411,50 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   color: var(--bg);
 }
 
-.nav-running {
-  position: relative;
-  padding: 4px 8px;
-  font-size: 14px;
-  color: #c0392b;
-  cursor: default;
-  line-height: 1;
+/* Running timer — compact bar shown on every page */
+.running-bar {
   display: flex;
   align-items: center;
-}
-
-.nav-running::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--fg);
-  color: var(--bg);
-  padding: 4px 10px;
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-  max-width: 320px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.1s;
-}
-
-.nav-running:hover::after {
-  opacity: 1;
-}
-
-/* Running timer — full screen invert */
-.running {
-  position: fixed;
-  inset: 0;
+  gap: 12px;
+  padding: 8px 24px;
+  border-top: 1px solid var(--hairline);
   background: var(--inv-bg);
   color: var(--inv-fg);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  z-index: 100;
-  padding: 32px;
 }
 
-.running .timer-display {
-  font-size: 96px;
-  margin: 0 0 16px;
+.running-bar-clock {
+  flex-shrink: 0;
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
-.running .running-desc {
-  font-size: 20px;
-  margin-bottom: 8px;
-  text-align: center;
-  max-width: 720px;
+.running-bar-desc {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.running .running-proj {
-  font-size: 14px;
+.running-bar-proj {
+  flex-shrink: 0;
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.15em;
-  margin-bottom: 32px;
+  letter-spacing: 0.08em;
   opacity: 0.7;
 }
 
-.running .btn {
+.running-bar .btn {
+  flex-shrink: 0;
   border-color: var(--inv-fg);
   background: var(--inv-bg);
   color: var(--inv-fg);
 }
 
-.running .btn:hover {
+.running-bar .btn:hover {
   background: var(--inv-fg);
   color: var(--inv-bg);
-}
-
-.running .hint {
-  margin-top: 24px;
-  font-size: 12px;
-  opacity: 0.5;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.running .running-started {
-  font-size: 12px;
-  opacity: 0.5;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-bottom: 24px;
-}
-
-.running .running-today {
-  position: absolute;
-  bottom: 40px;
-  left: 0;
-  right: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.running .running-today-label {
-  font-size: 16px;
-  opacity: 0.5;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-}
-
-.running .running-today-value {
-  font-size: 23px;
-  opacity: 0.85;
-  letter-spacing: 0.02em;
-}
-
-.running .running-started:hover,
-.running .running-started:focus-within {
-  opacity: 1;
-}
-
-.running .start-wrap {
-  height: 52px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 16px;
-}
-
-.running .start-inline-input {
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid transparent;
-  color: inherit;
-  font: inherit;
-  font-size: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
-  width: 7ch;
-  padding: 0;
-  outline: none;
-  cursor: text;
-  text-align: center;
-}
-
-.running .start-inline-input:hover,
-.running .start-inline-input:focus {
-  border-bottom-color: currentColor;
-}
-
-.running .start-error {
-  font-size: 11px;
-  opacity: 0.7;
-  margin-top: 4px;
 }
 
 /* Task autocomplete dropdown */
@@ -637,6 +561,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   flex-direction: column;
   align-items: flex-end;
   gap: 8px;
+}
+
+.plans-float--lifted {
+  bottom: 109px;
 }
 
 .plans-trigger {
@@ -907,6 +835,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     bottom: 90px;
   }
 
+  .plans-float--lifted {
+    bottom: 127px;
+  }
+
   .plans-panel {
     max-width: calc(100vw - 24px);
   }
@@ -979,7 +911,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 /* ─── Mobile (≤ 600px) ─────────────────────────────────────── */
 @media (max-width: 600px) {
   .app {
-    padding: 16px 16px 96px;
+    padding: 16px 16px 160px;
   }
 
   .nav {
@@ -1001,10 +933,6 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 
   .nav .btn:nth-child(odd) {
     border-right: 1px solid var(--hairline);
-  }
-
-  .nav-running {
-    display: none;
   }
 
   .entry-row {
@@ -1118,16 +1046,8 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     gap: 8px;
   }
 
-  .running {
-    padding: 24px 16px;
-  }
-
-  .running .timer-display {
-    font-size: 64px;
-  }
-
-  .running .running-desc {
-    font-size: 16px;
+  .running-bar-proj {
+    display: none;
   }
 
   .login-card {

@@ -8,6 +8,8 @@ import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
 import Nav from './components/Nav';
 import PlansWidget from './components/PlansWidget';
+import RunningBar from './components/RunningBar';
+import { TimerProvider } from './lib/TimerContext';
 import type { ReactNode } from 'react';
 
 type AuthStatus = 'loading' | 'ok' | 'unauth';
@@ -15,11 +17,15 @@ type AuthStatus = 'loading' | 'ok' | 'unauth';
 interface AuthState { status: AuthStatus; user: string | null; }
 
 function Shell({ children }: { children: ReactNode }) {
+  const location = useLocation();
   return (
     <div className="app">
       {children}
       <PlansWidget />
-      <Nav />
+      <footer className="footer">
+        {location.pathname !== '/' && <RunningBar />}
+        <Nav />
+      </footer>
     </div>
   );
 }
@@ -42,13 +48,15 @@ export default function App() {
   }
 
   return (
-    <Routes>
-      <Route path="/login" element={<Navigate to="/" replace />} />
-      <Route path="/"          element={<Shell><TimerPage /></Shell>} />
-      <Route path="/entries"   element={<Shell><EntriesPage /></Shell>} />
-      <Route path="/dashboard" element={<Shell><DashboardPage /></Shell>} />
-      <Route path="/settings"  element={<Shell><SettingsPage onLogout={() => setAuth({ status: 'unauth', user: null })} /></Shell>} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <TimerProvider>
+      <Routes>
+        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route path="/"          element={<Shell><TimerPage /></Shell>} />
+        <Route path="/entries"   element={<Shell><EntriesPage /></Shell>} />
+        <Route path="/dashboard" element={<Shell><DashboardPage /></Shell>} />
+        <Route path="/settings"  element={<Shell><SettingsPage onLogout={() => setAuth({ status: 'unauth', user: null })} /></Shell>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </TimerProvider>
   );
 }

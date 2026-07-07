@@ -14,9 +14,10 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Plan, PlanCategory, Project } from '../lib/api';
+import { useTimer } from '../lib/TimerContext';
 
 interface SortableItemProps {
   plan: Plan;
@@ -250,6 +251,9 @@ function saveCollapsed(set: Set<number>) {
 
 export default function PlansWidget() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { start: startTimer, current } = useTimer();
+  const liftedByRunningBar = Boolean(current) && location.pathname !== '/';
   const [open, setOpen] = useState(() => localStorage.getItem('backlog-open') === '1');
   const [plans, setPlans] = useState<Plan[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -381,8 +385,7 @@ export default function PlansWidget() {
   }
 
   async function handleRun(plan: Plan) {
-    try { await api.timer.stop(); } catch {}
-    await api.timer.start({ projectId: plan.project_id, description: plan.text });
+    await startTimer({ projectId: plan.project_id, description: plan.text });
     navigate('/');
   }
 
@@ -405,7 +408,7 @@ export default function PlansWidget() {
   const doneCount = donePlans.length;
 
   return (
-    <div className="plans-float" ref={panelRef}>
+    <div className={`plans-float${liftedByRunningBar ? ' plans-float--lifted' : ''}`} ref={panelRef}>
       {open && (
         <div className="plans-panel" style={{ width: panelSize.width, height: panelSize.height }}>
           <div className="plans-resize-handle" onMouseDown={handleResizeMouseDown} />

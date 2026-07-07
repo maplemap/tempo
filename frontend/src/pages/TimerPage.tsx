@@ -1,66 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
-import type { Entry, Project, TimerEntry } from '../lib/api';
-import { fmtClock, fmtDate, fmtDuration, fmtDayHeader, isoDateKey, rangeLastNDays, normalizeTimeInput } from '../lib/time';
+import type { Entry, Project } from '../lib/api';
+import { fmtClock, fmtDate, fmtDuration, fmtDayHeader, isoDateKey, rangeLastNDays } from '../lib/time';
 import { useMidnightRefresh } from '../lib/hooks';
+import { useTimer } from '../lib/TimerContext';
 import EntryItem from '../components/EntryItem';
-import { renderDescription } from '../lib/renderDescription';
 import TaskAutocomplete from '../components/TaskAutocomplete';
-
-const FAVICON_SIZE   = 64;
-const FAVICON_CORNER = 14;
-
-function drawFavicon(minutes: number | null): void {
-  const canvas = document.createElement('canvas');
-  canvas.width = FAVICON_SIZE;
-  canvas.height = FAVICON_SIZE;
-  const ctx = canvas.getContext('2d')!;
-  const s = FAVICON_SIZE;
-  const r = FAVICON_CORNER;
-
-  // Rounded square background
-  ctx.fillStyle = minutes !== null ? '#fe5f33' : '#1a1a1a';
-  ctx.beginPath();
-  ctx.moveTo(r, 0);
-  ctx.lineTo(s - r, 0);
-  ctx.quadraticCurveTo(s, 0, s, r);
-  ctx.lineTo(s, s - r);
-  ctx.quadraticCurveTo(s, s, s - r, s);
-  ctx.lineTo(r, s);
-  ctx.quadraticCurveTo(0, s, 0, s - r);
-  ctx.lineTo(0, r);
-  ctx.quadraticCurveTo(0, 0, r, 0);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = '#f9f9f9';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  if (minutes === null) {
-    ctx.font = 'bold 44px monospace';
-    ctx.fillText('T', s / 2, s / 2 + 2);
-  } else {
-    const label = minutes < 100 ? String(minutes) : '99+';
-    ctx.font = `bold ${label.length > 2 ? 28 : 38}px monospace`;
-    ctx.fillText(label, s / 2, s / 2 + 2);
-  }
-
-  let link = document.getElementById('tempo-favicon') as HTMLLinkElement | null;
-  if (!link) {
-    link = document.createElement('link');
-    link.id = 'tempo-favicon';
-    link.rel = 'icon';
-    document.head.appendChild(link);
-  }
-  link.href = canvas.toDataURL('image/png');
-}
-
-function clearFavicon(): void {
-  const link = document.getElementById('tempo-favicon');
-  if (link) link.remove();
-}
 
 const LAST_PROJECT_KEY = 'tempo:lastProjectId';
 
@@ -113,19 +59,13 @@ function PastDaySection({ entries, projects, collapsed, onToggle, onRefresh }: P
 
 export default function TimerPage() {
   const location = useLocation();
-  const [current, setCurrent] = useState<TimerEntry | null>(null);
+  const { current, elapsedSec, start: startTimer, stop: stopTimer } = useTimer();
   const [projects, setProjects] = useState<Project[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [projectId, setProjectId] = useState<string>(localStorage.getItem(LAST_PROJECT_KEY) || '');
   const [taskText, setTaskText] = useState('');
-  const [tick, setTick] = useState(0);
-  const [startDraft, setStartDraft] = useState('');
-  const [startError, setStartError] = useState<string | null>(null);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [today, setToday] = useState(() => new Date());
-  const startedAtRef = useRef<number | null>(null);
-  const skipBlurSave = useRef(false);
-  const startInputFocused = useRef(false);
 
   function toggleDay(key: string) {
     setExpandedDays((prev) => {
@@ -135,136 +75,37 @@ export default function TimerPage() {
     });
   }
 
-  const elapsedSec = current && startedAtRef.current
-    ? Math.max(0, Math.floor((Date.now() - startedAtRef.current) / 1000))
-    : 0;
-
   async function refresh() {
-    const [{ current: timerCurrent }, { projects: prjs }, { entries: ents }] = await Promise.all([
-      api.timer.current(),
+    const [{ projects: prjs }, { entries: ents }] = await Promise.all([
       api.projects.list(),
       api.entries.list(rangeLastNDays(8)),
     ]);
-    setCurrent(timerCurrent);
     setProjects(prjs);
     setEntries(ents);
-    if (timerCurrent) {
-      startedAtRef.current = new Date(timerCurrent.started_at).getTime();
-      setProjectId(String(timerCurrent.project_id ?? ''));
-    }
   }
 
   useEffect(() => { refresh(); }, [location.key]);
 
   useEffect(() => {
-    if (!current) return;
-    const id = setInterval(() => setTick((t) => t + 1), 1000);
-    return () => clearInterval(id);
+    if (current) setProjectId(String(current.project_id ?? ''));
   }, [current]);
-
-  // Suppress unused variable warning for tick
-  void tick;
-
-  useEffect(() => {
-    if (!current) {
-      document.title = 'Tempo';
-      return;
-    }
-    const mins = Math.floor(elapsedSec / 60);
-    const parts = [current.project_name, current.description].filter(Boolean).join(' - ');
-    document.title = `${String(mins).padStart(2, '0')}m — Tempo${parts ? ` | ${parts}` : ''}`;
-  }, [current, elapsedSec]);
-
-  useEffect(() => {
-    if (!current) {
-      drawFavicon(null);
-      return () => clearFavicon();
-    }
-
-    function tick() {
-      const elapsed = startedAtRef.current
-        ? (Date.now() - startedAtRef.current) / 1000
-        : 0;
-      drawFavicon(Math.floor(elapsed / 60));
-    }
-
-    tick();
-    const id = window.setInterval(tick, 1000);
-    return () => { clearInterval(id); clearFavicon(); };
-  }, [current]);
-
-  useEffect(() => {
-    return () => {
-      document.title = 'Tempo';
-      clearFavicon();
-    };
-  }, []);
 
   useMidnightRefresh(() => {
     setToday(new Date());
     void refresh();
   });
 
-  useEffect(() => {
-    if (!current || startInputFocused.current) return;
-    setStartDraft(toTimeInput(current.started_at));
-  }, [current]);
-
-  function toTimeInput(iso: string): string {
-    const d = new Date(iso);
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  }
-
-  function applyTimeInput(hhmm: string, originalIso: string): string {
-    const d = new Date(originalIso);
-    const [h, m] = hhmm.split(':').map(Number);
-    d.setHours(h, m, 0, 0);
-    return d.toISOString();
-  }
-
-  async function saveStartTime() {
-    if (!current) return;
-    const norm = normalizeTimeInput(startDraft);
-    if (!norm) {
-      setStartError('! invalid time');
-      return;
-    }
-    if (norm !== startDraft) setStartDraft(norm);
-    const newStartedAt = applyTimeInput(norm, current.started_at);
-    if (new Date(newStartedAt).getTime() > Date.now()) {
-      setStartError('! start time cannot be in the future');
-      return;
-    }
-    try {
-      await api.entries.update(current.id, { started_at: newStartedAt });
-      startedAtRef.current = new Date(newStartedAt).getTime();
-      setCurrent({ ...current, started_at: newStartedAt });
-    } catch (e) {
-      setStartError(`! ${(e as Error).message}`);
-    }
-  }
-
   async function start(overrideText?: string) {
     const trimmed = (overrideText ?? taskText).trim();
     if (!trimmed) return;
     const pid = projectId ? Number(projectId) : null;
-
-    const res = await api.timer.start({ projectId: pid, description: trimmed });
-    setCurrent(res.current);
-    startedAtRef.current = new Date(res.current.started_at).getTime();
+    await startTimer({ projectId: pid, description: trimmed });
   }
 
   async function stop() {
-    try {
-      await api.timer.stop();
-    } catch (e) {
-      console.warn('stop failed, will resync', e);
-    } finally {
-      setCurrent(null);
-      setTick(0);
-      setTaskText('');
-      await refresh();
-    }
+    await stopTimer();
+    setTaskText('');
+    await refresh();
   }
 
   useEffect(() => {
@@ -273,7 +114,7 @@ export default function TimerPage() {
       if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
       if (e.code === 'Space') {
         e.preventDefault();
-        current ? stop() : start();
+        current ? void stop() : void start();
       }
     }
     window.addEventListener('keydown', onKey);
@@ -295,53 +136,9 @@ export default function TimerPage() {
   }
   const pastDayKeys = [...pastDayMap.keys()].sort((a, b) => b.localeCompare(a));
 
-  if (current) {
-    return (
-      <div className="running">
-        <div className="timer-display">{fmtClock(elapsedSec)}</div>
-        <div className="running-desc">
-          {renderDescription(current.description, { githubRepo: current.github_repo })}
-        </div>
-        <div className="running-proj">{current.project_name || 'no project'}</div>
-
-        <div className="start-wrap">
-          <div className="running-started">
-            started{' '}
-            <input
-              type="text"
-              className="start-inline-input"
-              value={startDraft}
-              size={5}
-              onChange={(e) => { setStartDraft(e.target.value); setStartError(null); }}
-              onFocus={() => { startInputFocused.current = true; }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') { e.preventDefault(); void saveStartTime(); }
-                if (e.key === 'Escape') {
-                  skipBlurSave.current = true;
-                  setStartDraft(toTimeInput(current.started_at));
-                  (e.target as HTMLInputElement).blur();
-                }
-              }}
-              onBlur={() => {
-                startInputFocused.current = false;
-                if (skipBlurSave.current) { skipBlurSave.current = false; return; }
-                void saveStartTime();
-              }}
-            />
-          </div>
-          {startError && <div className="start-error">{startError}</div>}
-        </div>
-
-        <button className="btn" onClick={stop}>[ STOP ]</button>
-        <div className="hint">press space to stop</div>
-
-        <div className="running-today">
-          <span className="running-today-label">today</span>
-          <span className="running-today-value">{fmtDuration(todayTotalSec)}</span>
-        </div>
-      </div>
-    );
-  }
+  const runningInfoText = current
+    ? [current.project_name, current.description].filter(Boolean).join(' · ')
+    : ' ';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
@@ -352,16 +149,29 @@ export default function TimerPage() {
         </div>
         <hr className="rule" />
 
-        <div className="timer-display">00:00:00</div>
+        <div className="timer-display">
+          <span className="running-dot-slot">{current && <span className="running-dot" />}</span>
+          <span>{current ? fmtClock(elapsedSec) : '00:00:00'}</span>
+          <span className="running-dot-slot" />
+        </div>
 
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-          <button className="btn solid" onClick={() => void start()}>[ START ]</button>
+          {current ? (
+            <button className="btn solid" onClick={() => void stop()}>[ STOP ]</button>
+          ) : (
+            <button className="btn solid" disabled={!taskText.trim()} onClick={() => void start()}>[ START ]</button>
+          )}
         </div>
 
         <div className="timer-form">
-          <span className="label">Project</span>
+          <div className="running-info" style={{ visibility: current ? 'visible' : 'hidden' }}>
+            {runningInfoText}
+          </div>
+
+          <span className="label" style={{ visibility: current ? 'hidden' : 'visible', gridRow: 1, gridColumn: 1 }}>Project</span>
           <select
             className="input"
+            style={{ visibility: current ? 'hidden' : 'visible', gridRow: 1, gridColumn: 2 }}
             value={projectId}
             onChange={(e) => {
               const v = e.target.value;
@@ -376,19 +186,21 @@ export default function TimerPage() {
             ))}
           </select>
 
-          <span className="label">Task</span>
-          <TaskAutocomplete
-            value={taskText}
-            onChange={setTaskText}
-            onEnter={(finalText) => void start(finalText)}
-            entries={entries}
-          />
+          <span className="label" style={{ visibility: current ? 'hidden' : 'visible', gridRow: 2, gridColumn: 1 }}>Task</span>
+          <div style={{ visibility: current ? 'hidden' : 'visible', gridRow: 2, gridColumn: 2 }}>
+            <TaskAutocomplete
+              value={taskText}
+              onChange={setTaskText}
+              onEnter={(finalText) => void start(finalText)}
+              entries={entries}
+            />
+          </div>
         </div>
 
         <div className="spread" style={{marginTop: "30px"}}>
           <span className="section-title">Today</span>
           <span className="muted" style={{ fontSize: 12 }}>
-            {fmtDuration(todayCompletedSec)}
+            {fmtDuration(todayTotalSec)}
             {' · '}{todayEntries.length} entries
           </span>
         </div>
