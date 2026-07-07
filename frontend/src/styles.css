@@ -650,7 +650,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   cursor: grab;
   color: var(--muted);
   font-size: 14px;
-  width: 14px;
+  width: 7px;
   flex-shrink: 0;
   touch-action: none;
   line-height: 1;
@@ -679,6 +679,8 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   width: auto;
   max-width: 60px;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 11px;
   color: var(--muted);
   border: none;
@@ -735,11 +737,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 
 .plan-add-row {
   display: flex;
-  gap: 6px;
+  gap: 10px;
   align-items: flex-end;
   padding: 4px 0 6px;
-  margin-bottom: 4px;
-  margin-left: 18px;
+  margin-bottom: 8px;
 }
 
 .plan-add-select {
@@ -779,7 +780,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 12px;
+  margin-top: 3px;
   padding: 2px 0;
   border-bottom: 1px solid var(--hairline);
 }
@@ -804,6 +805,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   cursor: text;
 }
 
+.plan-cat-name--fixed {
+  cursor: default;
+}
+
 .plan-cat-name-input {
   flex: 1;
   min-width: 0;
@@ -820,13 +825,15 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 }
 
 .plan-cat-add {
-  margin-top: 12px;
+  margin-top: 25px;
 }
 
 .plan-cat-add-row {
   display: flex;
-  margin-top: 12px;
-  padding: 2px 0;
+  align-items: center;
+  margin-top: 20px;
+  padding: 2px 6px;
+  border: 1px solid transparent;
 }
 
 @media (max-width: 600px) {

@@ -197,7 +197,7 @@ export default function TimerPage() {
           </div>
         </div>
 
-        <div className="spread" style={{marginTop: "30px"}}>
+        <div className="spread">
           <span className="section-title">Today</span>
           <span className="muted" style={{ fontSize: 12 }}>
             {fmtDuration(todayTotalSec)}

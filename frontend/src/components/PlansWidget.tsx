@@ -188,6 +188,24 @@ function CategoryHeader({ category, count, collapsed, onToggle, onRename, onDele
   );
 }
 
+interface DoneHeaderProps {
+  count: number;
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+function DoneHeader({ count, collapsed, onToggle }: DoneHeaderProps) {
+  return (
+    <div className="plan-cat-header">
+      <button className="plan-cat-toggle btn icon-btn" onClick={onToggle}>
+        {collapsed ? '▸' : '▾'}
+      </button>
+      <span className="plan-cat-name plan-cat-name--fixed">Done</span>
+      <span className="plan-cat-count">{count}</span>
+    </div>
+  );
+}
+
 function AddCategoryRow({ onAdd }: { onAdd: (category: PlanCategory) => void }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
@@ -228,6 +246,7 @@ function AddCategoryRow({ onAdd }: { onAdd: (category: PlanCategory) => void }) 
 
 const STORAGE_KEY = 'backlog-panel-size';
 const COLLAPSED_KEY = 'backlog-collapsed-cats';
+const DONE_COLLAPSED_KEY = 'backlog-done-collapsed';
 
 function loadPanelSize() {
   try {
@@ -258,9 +277,9 @@ export default function PlansWidget() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [categories, setCategories] = useState<PlanCategory[]>([]);
-  const [showDone, setShowDone] = useState(true);
   const [panelSize, setPanelSize] = useState(loadPanelSize);
   const [collapsed, setCollapsed] = useState<Set<number>>(loadCollapsed);
+  const [doneCollapsed, setDoneCollapsed] = useState(() => localStorage.getItem(DONE_COLLAPSED_KEY) === '1');
 
   function toggleCollapsed(id: number) {
     setCollapsed((prev) => {
@@ -291,6 +310,7 @@ export default function PlansWidget() {
   }
 
   useEffect(() => { localStorage.setItem('backlog-open', open ? '1' : '0'); }, [open]);
+  useEffect(() => { localStorage.setItem(DONE_COLLAPSED_KEY, doneCollapsed ? '1' : '0'); }, [doneCollapsed]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -317,14 +337,14 @@ export default function PlansWidget() {
     (b.done_at ?? '').localeCompare(a.done_at ?? '')
   );
 
-  const sections: Array<{ key: string; category: PlanCategory | null; plans: Plan[] }> = [
-    { key: 'section-null', category: null, plans: openPlans.filter((p) => p.category_id == null) },
-    ...categories.map((c) => ({
+  const generalSection: { key: string; category: PlanCategory | null; plans: Plan[] } =
+    { key: 'section-null', category: null, plans: openPlans.filter((p) => p.category_id == null) };
+  const categorySections: Array<{ key: string; category: PlanCategory | null; plans: Plan[] }> =
+    categories.map((c) => ({
       key: `section-${c.id}`,
       category: c,
       plans: openPlans.filter((p) => p.category_id === c.id),
-    })),
-  ];
+    }));
 
   async function handleRenameCategory(id: number, name: string) {
     const { category } = await api.planCategories.update(id, { name });
@@ -342,6 +362,11 @@ export default function PlansWidget() {
     if (!over) return;
     const activePlan = openPlans.find((p) => p.id === active.id);
     if (!activePlan) return;
+
+    if (over.id === 'section-done') {
+      void handleMarkDone(activePlan);
+      return;
+    }
 
     // Target: either a plan row (sortable) or a section container (droppable).
     let targetCatId: number | null;
@@ -407,6 +432,39 @@ export default function PlansWidget() {
   const openCount = openPlans.length;
   const doneCount = donePlans.length;
 
+  function renderSection(section: { key: string; category: PlanCategory | null; plans: Plan[] }) {
+    const isCollapsed = section.category != null && collapsed.has(section.category.id);
+    return (
+      <SectionDroppable key={section.key} id={section.key}>
+        {section.category && (
+          <CategoryHeader
+            category={section.category}
+            count={section.plans.length}
+            collapsed={isCollapsed}
+            onToggle={() => toggleCollapsed(section.category!.id)}
+            onRename={handleRenameCategory}
+            onDelete={(c) => void handleDeleteCategory(c)}
+          />
+        )}
+        {!isCollapsed && (
+          <SortableContext items={section.plans.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+            {section.plans.map((plan) => (
+              <SortableItem
+                key={plan.id}
+                plan={plan}
+                projects={projects}
+                onRun={handleRun}
+                onMarkDone={handleMarkDone}
+                onUpdate={(id, patch) => setPlans((prev) => prev.map((p) => p.id === id ? { ...p, ...patch } : p))}
+                onDelete={handleDelete}
+              />
+            ))}
+          </SortableContext>
+        )}
+      </SectionDroppable>
+    );
+  }
+
   return (
     <div className={`plans-float${liftedByRunningBar ? ' plans-float--lifted' : ''}`} ref={panelRef}>
       {open && (
@@ -420,11 +478,6 @@ export default function PlansWidget() {
               </span>
             </span>
             <span style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-              {doneCount > 0 && (
-                <button className="btn icon-btn" onClick={() => setShowDone((v) => !v)}>
-                  {showDone ? '[ hide done ]' : '[ show done ]'}
-                </button>
-              )}
               <button className="btn icon-btn" onClick={() => setOpen(false)}>[ × ]</button>
             </span>
           </div>
@@ -436,61 +489,41 @@ export default function PlansWidget() {
             />
 
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              {sections.map((section) => {
-                const isCollapsed = section.category != null && collapsed.has(section.category.id);
-                return (
-                  <SectionDroppable key={section.key} id={section.key}>
-                    {section.category && (
-                      <CategoryHeader
-                        category={section.category}
-                        count={section.plans.length}
-                        collapsed={isCollapsed}
-                        onToggle={() => toggleCollapsed(section.category!.id)}
-                        onRename={handleRenameCategory}
-                        onDelete={(c) => void handleDeleteCategory(c)}
-                      />
-                    )}
-                    {!isCollapsed && (
-                      <SortableContext items={section.plans.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-                        {section.plans.map((plan) => (
-                          <SortableItem
-                            key={plan.id}
-                            plan={plan}
-                            projects={projects}
-                            onRun={handleRun}
-                            onMarkDone={handleMarkDone}
-                            onUpdate={(id, patch) => setPlans((prev) => prev.map((p) => p.id === id ? { ...p, ...patch } : p))}
-                            onDelete={handleDelete}
-                          />
-                        ))}
-                      </SortableContext>
-                    )}
-                  </SectionDroppable>
-                );
-              })}
+              {renderSection(generalSection)}
+
+              <AddCategoryRow onAdd={(category) => setCategories((prev) => [...prev, category])} />
+
+              {categorySections.map(renderSection)}
+
+              {doneCount > 0 && (
+              <SectionDroppable id="section-done">
+                <DoneHeader
+                  count={doneCount}
+                  collapsed={doneCollapsed}
+                  onToggle={() => setDoneCollapsed((v) => !v)}
+                />
+                {!doneCollapsed && donePlans.map((plan) => (
+                  <div key={plan.id} className="plan-row plan-row--done">
+                    <input type="checkbox" className="plan-checkbox" checked={true} onChange={() => void handleRestore(plan)} />
+                    <span className="plan-handle plan-handle--disabled">⠿</span>
+                    <select
+                      className="plan-inline-select"
+                      value={plan.project_id ?? ''}
+                      title={plan.project_name ?? undefined}
+                      disabled
+                    >
+                      <option value="">—</option>
+                      {projects.filter((p) => !p.archived || p.id === plan.project_id).map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                    <input className="plan-inline-input" value={plan.text} title={plan.text || undefined} disabled readOnly onChange={() => {}} />
+                    <button className="btn icon-btn" onClick={() => void handleDelete(plan)}>[ × ]</button>
+                  </div>
+                ))}
+              </SectionDroppable>
+              )}
             </DndContext>
-
-            <AddCategoryRow onAdd={(category) => setCategories((prev) => [...prev, category])} />
-
-            {showDone && donePlans.map((plan) => (
-              <div key={plan.id} className="plan-row plan-row--done">
-                <input type="checkbox" className="plan-checkbox" checked={true} onChange={() => void handleRestore(plan)} />
-                <span className="plan-handle plan-handle--disabled">⠿</span>
-                <select
-                  className="plan-inline-select"
-                  value={plan.project_id ?? ''}
-                  title={plan.project_name ?? undefined}
-                  disabled
-                >
-                  <option value="">—</option>
-                  {projects.filter((p) => !p.archived || p.id === plan.project_id).map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-                <input className="plan-inline-input" value={plan.text} title={plan.text || undefined} disabled readOnly onChange={() => {}} />
-                <button className="btn icon-btn" onClick={() => void handleDelete(plan)}>[ × ]</button>
-              </div>
-            ))}
           </div>
         </div>
       )}
