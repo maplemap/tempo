@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import PlansWidget from './PlansWidget';
 
 const items = [
   { to: '/',          label: 'Timer' },
@@ -20,6 +21,7 @@ export default function Nav() {
           [ {it.label} ]
         </NavLink>
       ))}
+      <PlansWidget />
     </nav>
   );
 }

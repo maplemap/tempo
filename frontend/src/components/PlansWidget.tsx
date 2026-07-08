@@ -14,7 +14,6 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Plan, PlanCategory, Project } from '../lib/api';
 import { useTimer } from '../lib/TimerContext';
@@ -247,13 +246,44 @@ function AddCategoryRow({ onAdd }: { onAdd: (category: PlanCategory) => void }) 
 const STORAGE_KEY = 'backlog-panel-size';
 const COLLAPSED_KEY = 'backlog-collapsed-cats';
 const DONE_COLLAPSED_KEY = 'backlog-done-collapsed';
+const PANEL_POSITION_KEY = 'backlog-panel-position';
 
-function loadPanelSize() {
+interface PanelSize { width: number; height: number; }
+interface PanelPosition { top: number; left: number; }
+
+function loadPanelSize(): PanelSize {
   try {
     const s = localStorage.getItem(STORAGE_KEY);
-    if (s) return JSON.parse(s) as { width: number; height: number };
+    if (s) return JSON.parse(s) as PanelSize;
   } catch {}
   return { width: 500, height: Math.round(window.innerHeight * 0.7) };
+}
+
+function clampPanelPosition(pos: PanelPosition, size: PanelSize): PanelPosition {
+  const maxLeft = Math.max(0, window.innerWidth - size.width);
+  const maxTop = Math.max(0, window.innerHeight - size.height);
+  return {
+    left: Math.min(Math.max(0, pos.left), maxLeft),
+    top: Math.min(Math.max(0, pos.top), maxTop),
+  };
+}
+
+function clampPanelSize(size: PanelSize): PanelSize {
+  return {
+    width: Math.max(280, Math.min(size.width, window.innerWidth - 24)),
+    height: Math.max(180, Math.min(size.height, window.innerHeight - 24)),
+  };
+}
+
+function loadPanelPosition(size: PanelSize): PanelPosition {
+  try {
+    const s = localStorage.getItem(PANEL_POSITION_KEY);
+    if (s) return clampPanelPosition(JSON.parse(s) as PanelPosition, size);
+  } catch {}
+  return clampPanelPosition(
+    { left: window.innerWidth - size.width - 24, top: window.innerHeight - size.height - 90 },
+    size
+  );
 }
 
 function loadCollapsed(): Set<number> {
@@ -269,10 +299,7 @@ function saveCollapsed(set: Set<number>) {
 }
 
 export default function PlansWidget() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { start: startTimer, current } = useTimer();
-  const liftedByRunningBar = Boolean(current) && location.pathname !== '/';
+  const { start: startTimer } = useTimer();
   const [open, setOpen] = useState(() => localStorage.getItem('backlog-open') === '1');
   const [plans, setPlans] = useState<Plan[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -280,6 +307,8 @@ export default function PlansWidget() {
   const [panelSize, setPanelSize] = useState(loadPanelSize);
   const [collapsed, setCollapsed] = useState<Set<number>>(loadCollapsed);
   const [doneCollapsed, setDoneCollapsed] = useState(() => localStorage.getItem(DONE_COLLAPSED_KEY) === '1');
+  const [panelPosition, setPanelPosition] = useState(() => loadPanelPosition(panelSize));
+  const [panelDragging, setPanelDragging] = useState(false);
 
   function toggleCollapsed(id: number) {
     setCollapsed((prev) => {
@@ -289,14 +318,16 @@ export default function PlansWidget() {
       return next;
     });
   }
-  const panelRef = useRef<HTMLDivElement>(null);
 
   function handleResizeMouseDown(e: React.MouseEvent) {
     e.preventDefault();
+    const { top, left } = panelPosition;
     let cur = panelSize;
     const onMove = (ev: MouseEvent) => {
-      const w = Math.max(280, Math.min(window.innerWidth - 48, window.innerWidth - 24 - ev.clientX));
-      const h = Math.max(180, Math.min(window.innerHeight - 100, window.innerHeight - 68 - ev.clientY));
+      const maxW = window.innerWidth - left - 12;
+      const maxH = window.innerHeight - top - 12;
+      const w = Math.max(280, Math.min(maxW, ev.clientX - left));
+      const h = Math.max(180, Math.min(maxH, ev.clientY - top));
       cur = { width: w, height: h };
       setPanelSize(cur);
     };
@@ -309,8 +340,47 @@ export default function PlansWidget() {
     document.addEventListener('mouseup', onUp);
   }
 
+  function handlePanelHeaderMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest('button')) return; // don't drag when clicking [ x ]
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startTop = panelPosition.top;
+    const startLeft = panelPosition.left;
+    setPanelDragging(true);
+
+    const onMove = (ev: MouseEvent) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      setPanelPosition(clampPanelPosition({ top: startTop + dy, left: startLeft + dx }, panelSize));
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      setPanelDragging(false);
+      setPanelPosition((p) => {
+        localStorage.setItem(PANEL_POSITION_KEY, JSON.stringify(p));
+        return p;
+      });
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
   useEffect(() => { localStorage.setItem('backlog-open', open ? '1' : '0'); }, [open]);
   useEffect(() => { localStorage.setItem(DONE_COLLAPSED_KEY, doneCollapsed ? '1' : '0'); }, [doneCollapsed]);
+
+  // Make sure the panel is still fully on-screen every time it's shown (window may have been resized while closed).
+  useEffect(() => {
+    if (!open) return;
+    setPanelSize((s) => {
+      const nextSize = clampPanelSize(s);
+      setPanelPosition((p) => clampPanelPosition(p, nextSize));
+      return nextSize;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -411,7 +481,6 @@ export default function PlansWidget() {
 
   async function handleRun(plan: Plan) {
     await startTimer({ projectId: plan.project_id, description: plan.text });
-    navigate('/');
   }
 
   async function handleMarkDone(plan: Plan) {
@@ -466,11 +535,24 @@ export default function PlansWidget() {
   }
 
   return (
-    <div className={`plans-float${liftedByRunningBar ? ' plans-float--lifted' : ''}`} ref={panelRef}>
+    <>
+      <button
+        className={`btn plans-trigger${open ? ' active' : ''}`}
+        onClick={() => setOpen((v) => !v)}
+      >
+        [ plans{openCount > 0 ? ` · ${openCount}` : ''} ]
+      </button>
+
       {open && (
-        <div className="plans-panel" style={{ width: panelSize.width, height: panelSize.height }}>
+        <div
+          className="plans-panel"
+          style={{ top: panelPosition.top, left: panelPosition.left, width: panelSize.width, height: panelSize.height }}
+        >
           <div className="plans-resize-handle" onMouseDown={handleResizeMouseDown} />
-          <div className="plans-panel-header">
+          <div
+            className={`plans-panel-header${panelDragging ? ' dragging' : ''}`}
+            onMouseDown={handlePanelHeaderMouseDown}
+          >
             <span className="plans-panel-title">
               Plans&nbsp;
               <span className="plans-panel-count">
@@ -527,13 +609,6 @@ export default function PlansWidget() {
           </div>
         </div>
       )}
-
-      <button
-        className={`btn icon-btn plans-trigger${open ? ' active' : ''}`}
-        onClick={() => setOpen((v) => !v)}
-      >
-        [ plans{openCount > 0 ? ` · ${openCount}` : ''} ]
-      </button>
-    </div>
+    </>
   );
 }

@@ -7,7 +7,6 @@ import EntriesPage from './pages/EntriesPage';
 import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
 import Nav from './components/Nav';
-import PlansWidget from './components/PlansWidget';
 import RunningBar from './components/RunningBar';
 import { TimerProvider } from './lib/TimerContext';
 import type { ReactNode } from 'react';
@@ -21,7 +20,6 @@ function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="app">
       {children}
-      <PlansWidget />
       <footer className="footer">
         {location.pathname !== '/' && <RunningBar />}
         <Nav />

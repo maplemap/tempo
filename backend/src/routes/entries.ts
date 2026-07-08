@@ -37,14 +37,14 @@ const listEntries = db.prepare<RangePageParams, DbEntry>(`
   SELECT e.*, p.name AS project_name, p.github_repo
   FROM time_entries e
   LEFT JOIN projects p ON p.id = e.project_id
-  WHERE e.started_at >= @fromIso AND e.started_at < @toIso
+  WHERE e.started_at >= @fromIso AND e.started_at < @toIso AND e.ended_at IS NOT NULL
   ORDER BY e.started_at DESC
   LIMIT @limit OFFSET @offset
 `);
 
 const countEntries = db.prepare<RangeParams, { count: number }>(`
   SELECT COUNT(*) AS count FROM time_entries e
-  WHERE e.started_at >= @fromIso AND e.started_at < @toIso
+  WHERE e.started_at >= @fromIso AND e.started_at < @toIso AND e.ended_at IS NOT NULL
 `);
 
 const getEntry = db.prepare<[number | string], DbEntry>(`
