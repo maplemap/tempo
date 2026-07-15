@@ -47,6 +47,18 @@ const countEntries = db.prepare<RangeParams, { count: number }>(`
   WHERE e.started_at >= @fromIso AND e.started_at < @toIso AND e.ended_at IS NOT NULL
 `);
 
+interface SuggestParams { fromIso: string; }
+
+const suggestDescriptions = db.prepare<SuggestParams, { description: string }>(`
+  SELECT description
+  FROM time_entries
+  WHERE started_at >= @fromIso AND ended_at IS NOT NULL
+    AND description IS NOT NULL AND description != ''
+  GROUP BY description
+  ORDER BY MAX(started_at) DESC
+  LIMIT 500
+`);
+
 const getEntry = db.prepare<[number | string], DbEntry>(`
   SELECT e.*, p.name AS project_name, p.github_repo
   FROM time_entries e
@@ -79,6 +91,13 @@ export default async function entryRoutes(fastify: FastifyInstance): Promise<voi
     const total = countEntries.get({ fromIso, toIso })!.count;
     const hasMore = offset + limit < total;
     return { entries: rows.map(hydrate), hasMore };
+  });
+
+  fastify.get<{ Querystring: { days?: string } }>('/suggestions', async (req) => {
+    const days = req.query.days ? parseInt(req.query.days, 10) : 60;
+    const fromIso = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    const rows = suggestDescriptions.all({ fromIso });
+    return { descriptions: rows.map((r) => r.description) };
   });
 
   fastify.get<{ Params: { id: string } }>('/:id', async (req, reply) => {
