@@ -606,6 +606,33 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   pointer-events: none;
 }
 
+.plans-resize-handle--nw,
+.plans-resize-handle--ne,
+.plans-resize-handle--sw {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  z-index: 10;
+}
+
+.plans-resize-handle--nw {
+  top: 1px;
+  left: 1px;
+  cursor: nwse-resize;
+}
+
+.plans-resize-handle--ne {
+  top: 1px;
+  right: 1px;
+  cursor: nesw-resize;
+}
+
+.plans-resize-handle--sw {
+  bottom: 1px;
+  left: 1px;
+  cursor: nesw-resize;
+}
+
 .plans-panel-header {
   cursor: grab;
   display: flex;

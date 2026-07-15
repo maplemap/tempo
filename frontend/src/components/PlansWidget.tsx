@@ -579,6 +579,9 @@ export default function PlansWidget() {
           className="plans-panel"
           style={{ top: panelPosition.top, left: panelPosition.left, width: panelSize.width, height: panelSize.height }}
         >
+          <div className="plans-resize-handle--nw" onMouseDown={(e) => handleResizeMouseDown(e, 'nw')} />
+          <div className="plans-resize-handle--ne" onMouseDown={(e) => handleResizeMouseDown(e, 'ne')} />
+          <div className="plans-resize-handle--sw" onMouseDown={(e) => handleResizeMouseDown(e, 'sw')} />
           <div className="plans-resize-handle" onMouseDown={(e) => handleResizeMouseDown(e, 'se')} />
           <div
             className={`plans-panel-header${panelDragging ? ' dragging' : ''}`}
