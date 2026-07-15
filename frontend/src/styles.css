@@ -593,19 +593,6 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   z-index: 10;
 }
 
-.plans-resize-handle::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 0;
-  height: 0;
-  border-style: solid;
-  border-width: 0 0 10px 10px;
-  border-color: transparent transparent var(--muted) transparent;
-  pointer-events: none;
-}
-
 .plans-resize-handle--nw,
 .plans-resize-handle--ne,
 .plans-resize-handle--sw {
