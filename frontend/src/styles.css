@@ -57,7 +57,7 @@ button {
 .hd {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   margin-bottom: 16px;
   min-height: calc(1.5em + 10px); /* matches .btn's box height so .hd is the same size on pages with and without header buttons */
 }
