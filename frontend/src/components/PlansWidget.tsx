@@ -250,6 +250,7 @@ const PANEL_POSITION_KEY = 'backlog-panel-position';
 
 interface PanelSize { width: number; height: number; }
 interface PanelPosition { top: number; left: number; }
+type ResizeCorner = 'nw' | 'ne' | 'sw' | 'se';
 
 function loadPanelSize(): PanelSize {
   try {
@@ -319,20 +320,50 @@ export default function PlansWidget() {
     });
   }
 
-  function handleResizeMouseDown(e: React.MouseEvent) {
+  function handleResizeMouseDown(e: React.MouseEvent, corner: ResizeCorner) {
     e.preventDefault();
-    const { top, left } = panelPosition;
-    let cur = panelSize;
+    const origTop = panelPosition.top;
+    const origLeft = panelPosition.left;
+    const origWidth = panelSize.width;
+    const origHeight = panelSize.height;
+    const right = origLeft + origWidth;
+    const bottom = origTop + origHeight;
+    const rightEdge = corner === 'ne' || corner === 'se';
+    const bottomEdge = corner === 'sw' || corner === 'se';
+
+    let curSize = panelSize;
+    let curPos = panelPosition;
+
     const onMove = (ev: MouseEvent) => {
-      const maxW = window.innerWidth - left - 12;
-      const maxH = window.innerHeight - top - 12;
-      const w = Math.max(280, Math.min(maxW, ev.clientX - left));
-      const h = Math.max(180, Math.min(maxH, ev.clientY - top));
-      cur = { width: w, height: h };
-      setPanelSize(cur);
+      let top = origTop;
+      let left = origLeft;
+      let width = origWidth;
+      let height = origHeight;
+
+      if (rightEdge) {
+        const maxW = window.innerWidth - left - 12;
+        width = Math.max(280, Math.min(maxW, ev.clientX - left));
+      } else {
+        left = Math.max(0, Math.min(right - 280, ev.clientX));
+        width = right - left;
+      }
+
+      if (bottomEdge) {
+        const maxH = window.innerHeight - top - 12;
+        height = Math.max(180, Math.min(maxH, ev.clientY - top));
+      } else {
+        top = Math.max(0, Math.min(bottom - 180, ev.clientY));
+        height = bottom - top;
+      }
+
+      curSize = { width, height };
+      curPos = { top, left };
+      setPanelSize(curSize);
+      setPanelPosition(curPos);
     };
     const onUp = () => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(cur));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(curSize));
+      localStorage.setItem(PANEL_POSITION_KEY, JSON.stringify(curPos));
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
@@ -548,7 +579,7 @@ export default function PlansWidget() {
           className="plans-panel"
           style={{ top: panelPosition.top, left: panelPosition.left, width: panelSize.width, height: panelSize.height }}
         >
-          <div className="plans-resize-handle" onMouseDown={handleResizeMouseDown} />
+          <div className="plans-resize-handle" onMouseDown={(e) => handleResizeMouseDown(e, 'se')} />
           <div
             className={`plans-panel-header${panelDragging ? ' dragging' : ''}`}
             onMouseDown={handlePanelHeaderMouseDown}
