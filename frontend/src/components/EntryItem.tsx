@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api';
 import { fmtDuration, normalizeTimeInput } from '../lib/time';
+import { useTimer } from '../lib/TimerContext';
 import ConfirmInline from './ConfirmInline';
 import CategoryBadge from './CategoryBadge';
 import { renderDescription } from '../lib/renderDescription';
@@ -61,6 +62,7 @@ function applyDateInput(yyyymmdd: string, originalIso: string): string {
 export default function EntryItem({
   entry, projects = [], onChange, onRestart, timeOnly = false,
 }: EntryItemProps) {
+  const { start: startTimer } = useTimer();
   const [dateText, setDateText] = useState(() => toDateDisplay(entry.started_at));
   const [startText, setStartText] = useState(() => toTimeInput(entry.started_at));
   const [endText, setEndText] = useState(() => toTimeInput(entry.ended_at));
@@ -166,7 +168,7 @@ export default function EntryItem({
   }
 
   async function restart() {
-    await api.timer.start({ projectId: entry.project_id, description: entry.description ?? '' });
+    await startTimer({ projectId: entry.project_id, description: entry.description ?? '' });
     onRestart?.();
   }
 

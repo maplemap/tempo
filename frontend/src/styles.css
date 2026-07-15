@@ -50,15 +50,16 @@ button {
 .app {
   max-width: 900px;
   margin: 0 auto;
-  padding: 24px 24px 96px;
+  padding: 24px 24px 130px;
   min-height: 100%;
 }
 
 .hd {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   margin-bottom: 16px;
+  min-height: calc(1.5em + 10px); /* matches .btn's box height so .hd is the same size on pages with and without header buttons */
 }
 
 .brand {
@@ -150,17 +151,51 @@ button {
 }
 
 .timer-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 56px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
-  text-align: center;
   margin: 24px 0;
+}
+
+.running-dot-slot {
+  width: 26px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.running-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 14px;
+  border-radius: 50%;
+  background: #fe5f33;
+  animation: running-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes running-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.running-info {
+  grid-row: 1 / -1;
+  grid-column: 1 / -1;
+  align-self: center;
+  text-align: center;
+  font-size: 25px;
 }
 
 .timer-form {
   display: grid;
   grid-template-columns: 100px 1fr;
+  grid-template-rows: auto auto;
   gap: 12px 16px;
   align-items: baseline;
 }
@@ -348,189 +383,80 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   opacity: 0.7;
 }
 
-.nav {
+.footer {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+}
+
+.nav {
+  position: relative;
   background: var(--bg);
   border-top: 1px solid var(--hairline);
   padding: 12px 24px;
   display: flex;
   justify-content: center;
   gap: 12px;
-  z-index: 10;
 }
 
-.nav .btn {
+.nav > .btn {
   min-width: 120px;
   text-align: center;
 }
 
-.nav .btn.active {
+.nav > .btn.active {
   background: var(--fg);
   color: var(--bg);
 }
 
-.nav-running {
-  position: relative;
-  padding: 4px 8px;
-  font-size: 14px;
-  color: #c0392b;
-  cursor: default;
-  line-height: 1;
+/* Running timer — compact bar shown on every page */
+.running-bar {
   display: flex;
   align-items: center;
-}
-
-.nav-running::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--fg);
-  color: var(--bg);
-  padding: 4px 10px;
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-  max-width: 320px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.1s;
-}
-
-.nav-running:hover::after {
-  opacity: 1;
-}
-
-/* Running timer — full screen invert */
-.running {
-  position: fixed;
-  inset: 0;
+  gap: 12px;
+  padding: 8px 24px;
+  border-top: 1px solid var(--hairline);
   background: var(--inv-bg);
   color: var(--inv-fg);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  z-index: 100;
-  padding: 32px;
 }
 
-.running .timer-display {
-  font-size: 96px;
-  margin: 0 0 16px;
+.running-bar-clock {
+  flex-shrink: 0;
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
-.running .running-desc {
-  font-size: 20px;
-  margin-bottom: 8px;
-  text-align: center;
-  max-width: 720px;
+.running-bar-desc {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.running .running-proj {
-  font-size: 14px;
+.running-bar-proj {
+  flex-shrink: 0;
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.15em;
-  margin-bottom: 32px;
+  letter-spacing: 0.08em;
   opacity: 0.7;
 }
 
-.running .btn {
+.running-bar .btn {
+  flex-shrink: 0;
   border-color: var(--inv-fg);
   background: var(--inv-bg);
   color: var(--inv-fg);
 }
 
-.running .btn:hover {
+.running-bar .btn:hover {
   background: var(--inv-fg);
   color: var(--inv-bg);
-}
-
-.running .hint {
-  margin-top: 24px;
-  font-size: 12px;
-  opacity: 0.5;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.running .running-started {
-  font-size: 12px;
-  opacity: 0.5;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-bottom: 24px;
-}
-
-.running .running-today {
-  position: absolute;
-  bottom: 40px;
-  left: 0;
-  right: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.running .running-today-label {
-  font-size: 16px;
-  opacity: 0.5;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-}
-
-.running .running-today-value {
-  font-size: 23px;
-  opacity: 0.85;
-  letter-spacing: 0.02em;
-}
-
-.running .running-started:hover,
-.running .running-started:focus-within {
-  opacity: 1;
-}
-
-.running .start-wrap {
-  height: 52px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 16px;
-}
-
-.running .start-inline-input {
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid transparent;
-  color: inherit;
-  font: inherit;
-  font-size: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
-  width: 7ch;
-  padding: 0;
-  outline: none;
-  cursor: text;
-  text-align: center;
-}
-
-.running .start-inline-input:hover,
-.running .start-inline-input:focus {
-  border-bottom-color: currentColor;
-}
-
-.running .start-error {
-  font-size: 11px;
-  opacity: 0.7;
-  margin-top: 4px;
 }
 
 /* Task autocomplete dropdown */
@@ -627,19 +553,13 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   margin-top: 4px;
 }
 
-/* Plans floating widget */
-.plans-float {
-  position: fixed;
-  bottom: 68px;
-  right: 24px;
-  z-index: 200;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-}
-
+/* Plans widget — trigger pinned in the footer nav (far right), panel floats free & draggable */
 .plans-trigger {
+  position: absolute;
+  top: 50%;
+  right: 24px;
+  transform: translateY(-50%);
+  min-width: 0;
   font-size: 12px;
   padding: 4px 10px;
   background: var(--bg);
@@ -652,10 +572,11 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 }
 
 .plans-panel {
-  position: relative;
+  position: fixed;
+  z-index: 200;
   border: 1px solid var(--hairline);
   background: var(--bg);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  box-shadow: -4px 4px 4px rgba(0,0,0,0.15);
   display: flex;
   flex-direction: column;
   max-width: calc(100vw - 24px);
@@ -665,27 +586,43 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 
 .plans-resize-handle {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 22px;
-  height: 22px;
-  cursor: nw-resize;
+  bottom: 1px;
+  right: 1px;
+  width: 10px;
+  height: 10px;
+  cursor: se-resize;
   z-index: 10;
 }
 
-.plans-resize-handle::after {
-  content: '⣿';
+.plans-resize-handle--nw,
+.plans-resize-handle--ne,
+.plans-resize-handle--sw {
   position: absolute;
-  top: 5px;
-  left: 5px;
-  font-size: 9px;
-  color: var(--muted);
-  opacity: 0.4;
-  pointer-events: none;
-  line-height: 1;
+  width: 10px;
+  height: 10px;
+  z-index: 10;
+}
+
+.plans-resize-handle--nw {
+  top: 1px;
+  left: 1px;
+  cursor: nwse-resize;
+}
+
+.plans-resize-handle--ne {
+  top: 1px;
+  right: 1px;
+  cursor: nesw-resize;
+}
+
+.plans-resize-handle--sw {
+  bottom: 1px;
+  left: 1px;
+  cursor: nesw-resize;
 }
 
 .plans-panel-header {
+  cursor: grab;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -694,6 +631,11 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   border-bottom: 1px solid var(--hairline);
   flex-shrink: 0;
   min-width: 0;
+}
+
+.plans-panel-header.dragging {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .plans-panel-body {
@@ -722,7 +664,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   cursor: grab;
   color: var(--muted);
   font-size: 14px;
-  width: 14px;
+  width: 7px;
   flex-shrink: 0;
   touch-action: none;
   line-height: 1;
@@ -751,6 +693,8 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   width: auto;
   max-width: 60px;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 11px;
   color: var(--muted);
   border: none;
@@ -807,11 +751,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 
 .plan-add-row {
   display: flex;
-  gap: 6px;
+  gap: 10px;
   align-items: flex-end;
   padding: 4px 0 6px;
-  margin-bottom: 4px;
-  margin-left: 18px;
+  margin-bottom: 8px;
 }
 
 .plan-add-select {
@@ -851,7 +794,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 12px;
+  margin-top: 3px;
   padding: 2px 0;
   border-bottom: 1px solid var(--hairline);
 }
@@ -876,6 +819,10 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   cursor: text;
 }
 
+.plan-cat-name--fixed {
+  cursor: default;
+}
+
 .plan-cat-name-input {
   flex: 1;
   min-width: 0;
@@ -892,21 +839,18 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 }
 
 .plan-cat-add {
-  margin-top: 12px;
+  margin-top: 25px;
 }
 
 .plan-cat-add-row {
   display: flex;
-  margin-top: 12px;
-  padding: 2px 0;
+  align-items: center;
+  margin-top: 20px;
+  padding: 2px 6px;
+  border: 1px solid transparent;
 }
 
 @media (max-width: 600px) {
-  .plans-float {
-    right: 12px;
-    bottom: 90px;
-  }
-
   .plans-panel {
     max-width: calc(100vw - 24px);
   }
@@ -979,7 +923,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 /* ─── Mobile (≤ 600px) ─────────────────────────────────────── */
 @media (max-width: 600px) {
   .app {
-    padding: 16px 16px 96px;
+    padding: 16px 16px 160px;
   }
 
   .nav {
@@ -990,7 +934,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     gap: 0;
   }
 
-  .nav .btn {
+  .nav > .btn {
     min-width: unset;
     width: 100%;
     border: none;
@@ -999,12 +943,15 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     text-align: center;
   }
 
-  .nav .btn:nth-child(odd) {
+  .nav > .btn:nth-child(odd) {
     border-right: 1px solid var(--hairline);
   }
 
-  .nav-running {
-    display: none;
+  .plans-trigger {
+    position: static;
+    grid-column: 1 / -1;
+    transform: none;
+    box-shadow: none;
   }
 
   .entry-row {
@@ -1118,16 +1065,8 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     gap: 8px;
   }
 
-  .running {
-    padding: 24px 16px;
-  }
-
-  .running .timer-display {
-    font-size: 64px;
-  }
-
-  .running .running-desc {
-    font-size: 16px;
+  .running-bar-proj {
+    display: none;
   }
 
   .login-card {

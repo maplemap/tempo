@@ -104,6 +104,8 @@ export const api = {
       const qs = new URLSearchParams(params).toString();
       return request<{ entries: Entry[]; hasMore: boolean }>(`/entries${qs ? `?${qs}` : ''}`);
     },
+    suggestions: (days = 60) =>
+      request<{ descriptions: string[] }>(`/entries/suggestions?days=${days}`),
     update:  (id: number, body: object) =>
       request<{ entry: Entry }>(`/entries/${id}`, { method: 'PATCH', body }),
     remove:  (id: number) =>

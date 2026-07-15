@@ -103,6 +103,7 @@ All parsed in `backend/src/lib/env.ts`. Required vars throw on startup if missin
 | `ADMIN_PASSWORD` | yes | — | Login password |
 | `JWT_SECRET` | yes | — | Token signing secret |
 | `PORT` | no | 3000 | Backend port |
+| `TZ` | no | UTC | IANA timezone for day-boundary math (overnight entry splitting in `timer.ts`) |
 | `SECURE_COOKIE` | no | `false` | Set `true` behind HTTPS |
 | `GITHUB_TOKEN` | no | — | PAT with `repo` scope; sync disabled if absent |
 | `SYNC_INTERVAL_MINUTES` | no | 15 | GitHub sync cron interval |

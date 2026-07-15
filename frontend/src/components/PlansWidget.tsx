@@ -14,9 +14,9 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Plan, PlanCategory, Project } from '../lib/api';
+import { useTimer } from '../lib/TimerContext';
 
 interface SortableItemProps {
   plan: Plan;
@@ -187,6 +187,24 @@ function CategoryHeader({ category, count, collapsed, onToggle, onRename, onDele
   );
 }
 
+interface DoneHeaderProps {
+  count: number;
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+function DoneHeader({ count, collapsed, onToggle }: DoneHeaderProps) {
+  return (
+    <div className="plan-cat-header">
+      <button className="plan-cat-toggle btn icon-btn" onClick={onToggle}>
+        {collapsed ? '▸' : '▾'}
+      </button>
+      <span className="plan-cat-name plan-cat-name--fixed">Done</span>
+      <span className="plan-cat-count">{count}</span>
+    </div>
+  );
+}
+
 function AddCategoryRow({ onAdd }: { onAdd: (category: PlanCategory) => void }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
@@ -227,13 +245,46 @@ function AddCategoryRow({ onAdd }: { onAdd: (category: PlanCategory) => void }) 
 
 const STORAGE_KEY = 'backlog-panel-size';
 const COLLAPSED_KEY = 'backlog-collapsed-cats';
+const DONE_COLLAPSED_KEY = 'backlog-done-collapsed';
+const PANEL_POSITION_KEY = 'backlog-panel-position';
 
-function loadPanelSize() {
+interface PanelSize { width: number; height: number; }
+interface PanelPosition { top: number; left: number; }
+type ResizeCorner = 'nw' | 'ne' | 'sw' | 'se';
+
+function loadPanelSize(): PanelSize {
   try {
     const s = localStorage.getItem(STORAGE_KEY);
-    if (s) return JSON.parse(s) as { width: number; height: number };
+    if (s) return JSON.parse(s) as PanelSize;
   } catch {}
   return { width: 500, height: Math.round(window.innerHeight * 0.7) };
+}
+
+function clampPanelPosition(pos: PanelPosition, size: PanelSize): PanelPosition {
+  const maxLeft = Math.max(0, window.innerWidth - size.width);
+  const maxTop = Math.max(0, window.innerHeight - size.height);
+  return {
+    left: Math.min(Math.max(0, pos.left), maxLeft),
+    top: Math.min(Math.max(0, pos.top), maxTop),
+  };
+}
+
+function clampPanelSize(size: PanelSize): PanelSize {
+  return {
+    width: Math.max(280, Math.min(size.width, window.innerWidth - 24)),
+    height: Math.max(180, Math.min(size.height, window.innerHeight - 24)),
+  };
+}
+
+function loadPanelPosition(size: PanelSize): PanelPosition {
+  try {
+    const s = localStorage.getItem(PANEL_POSITION_KEY);
+    if (s) return clampPanelPosition(JSON.parse(s) as PanelPosition, size);
+  } catch {}
+  return clampPanelPosition(
+    { left: window.innerWidth - size.width - 24, top: window.innerHeight - size.height - 90 },
+    size
+  );
 }
 
 function loadCollapsed(): Set<number> {
@@ -249,14 +300,16 @@ function saveCollapsed(set: Set<number>) {
 }
 
 export default function PlansWidget() {
-  const navigate = useNavigate();
+  const { start: startTimer } = useTimer();
   const [open, setOpen] = useState(() => localStorage.getItem('backlog-open') === '1');
   const [plans, setPlans] = useState<Plan[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [categories, setCategories] = useState<PlanCategory[]>([]);
-  const [showDone, setShowDone] = useState(true);
   const [panelSize, setPanelSize] = useState(loadPanelSize);
   const [collapsed, setCollapsed] = useState<Set<number>>(loadCollapsed);
+  const [doneCollapsed, setDoneCollapsed] = useState(() => localStorage.getItem(DONE_COLLAPSED_KEY) === '1');
+  const [panelPosition, setPanelPosition] = useState(() => loadPanelPosition(panelSize));
+  const [panelDragging, setPanelDragging] = useState(false);
 
   function toggleCollapsed(id: number) {
     setCollapsed((prev) => {
@@ -266,19 +319,51 @@ export default function PlansWidget() {
       return next;
     });
   }
-  const panelRef = useRef<HTMLDivElement>(null);
 
-  function handleResizeMouseDown(e: React.MouseEvent) {
+  function handleResizeMouseDown(e: React.MouseEvent, corner: ResizeCorner) {
     e.preventDefault();
-    let cur = panelSize;
+    const origTop = panelPosition.top;
+    const origLeft = panelPosition.left;
+    const origWidth = panelSize.width;
+    const origHeight = panelSize.height;
+    const right = origLeft + origWidth;
+    const bottom = origTop + origHeight;
+    const rightEdge = corner === 'ne' || corner === 'se';
+    const bottomEdge = corner === 'sw' || corner === 'se';
+
+    let curSize = panelSize;
+    let curPos = panelPosition;
+
     const onMove = (ev: MouseEvent) => {
-      const w = Math.max(280, Math.min(window.innerWidth - 48, window.innerWidth - 24 - ev.clientX));
-      const h = Math.max(180, Math.min(window.innerHeight - 100, window.innerHeight - 68 - ev.clientY));
-      cur = { width: w, height: h };
-      setPanelSize(cur);
+      let top = origTop;
+      let left = origLeft;
+      let width = origWidth;
+      let height = origHeight;
+
+      if (rightEdge) {
+        const maxW = window.innerWidth - left - 12;
+        width = Math.max(280, Math.min(maxW, ev.clientX - left));
+      } else {
+        left = Math.max(0, Math.min(right - 280, ev.clientX));
+        width = right - left;
+      }
+
+      if (bottomEdge) {
+        const maxH = window.innerHeight - top - 12;
+        height = Math.max(180, Math.min(maxH, ev.clientY - top));
+      } else {
+        top = Math.max(0, Math.min(bottom - 180, ev.clientY));
+        height = bottom - top;
+      }
+
+      curSize = { width, height };
+      curPos = { top, left };
+      setPanelSize(curSize);
+      setPanelPosition(curPos);
     };
     const onUp = () => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(cur));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(curSize));
+      localStorage.setItem(PANEL_POSITION_KEY, JSON.stringify(curPos));
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
@@ -286,7 +371,47 @@ export default function PlansWidget() {
     document.addEventListener('mouseup', onUp);
   }
 
+  function handlePanelHeaderMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest('button')) return; // don't drag when clicking [ x ]
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startTop = panelPosition.top;
+    const startLeft = panelPosition.left;
+    setPanelDragging(true);
+
+    const onMove = (ev: MouseEvent) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      setPanelPosition(clampPanelPosition({ top: startTop + dy, left: startLeft + dx }, panelSize));
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      setPanelDragging(false);
+      setPanelPosition((p) => {
+        localStorage.setItem(PANEL_POSITION_KEY, JSON.stringify(p));
+        return p;
+      });
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
   useEffect(() => { localStorage.setItem('backlog-open', open ? '1' : '0'); }, [open]);
+  useEffect(() => { localStorage.setItem(DONE_COLLAPSED_KEY, doneCollapsed ? '1' : '0'); }, [doneCollapsed]);
+
+  // Make sure the panel is still fully on-screen every time it's shown (window may have been resized while closed).
+  useEffect(() => {
+    if (!open) return;
+    setPanelSize((s) => {
+      const nextSize = clampPanelSize(s);
+      setPanelPosition((p) => clampPanelPosition(p, nextSize));
+      return nextSize;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -313,14 +438,14 @@ export default function PlansWidget() {
     (b.done_at ?? '').localeCompare(a.done_at ?? '')
   );
 
-  const sections: Array<{ key: string; category: PlanCategory | null; plans: Plan[] }> = [
-    { key: 'section-null', category: null, plans: openPlans.filter((p) => p.category_id == null) },
-    ...categories.map((c) => ({
+  const generalSection: { key: string; category: PlanCategory | null; plans: Plan[] } =
+    { key: 'section-null', category: null, plans: openPlans.filter((p) => p.category_id == null) };
+  const categorySections: Array<{ key: string; category: PlanCategory | null; plans: Plan[] }> =
+    categories.map((c) => ({
       key: `section-${c.id}`,
       category: c,
       plans: openPlans.filter((p) => p.category_id === c.id),
-    })),
-  ];
+    }));
 
   async function handleRenameCategory(id: number, name: string) {
     const { category } = await api.planCategories.update(id, { name });
@@ -338,6 +463,11 @@ export default function PlansWidget() {
     if (!over) return;
     const activePlan = openPlans.find((p) => p.id === active.id);
     if (!activePlan) return;
+
+    if (over.id === 'section-done') {
+      void handleMarkDone(activePlan);
+      return;
+    }
 
     // Target: either a plan row (sortable) or a section container (droppable).
     let targetCatId: number | null;
@@ -381,9 +511,7 @@ export default function PlansWidget() {
   }
 
   async function handleRun(plan: Plan) {
-    try { await api.timer.stop(); } catch {}
-    await api.timer.start({ projectId: plan.project_id, description: plan.text });
-    navigate('/');
+    await startTimer({ projectId: plan.project_id, description: plan.text });
   }
 
   async function handleMarkDone(plan: Plan) {
@@ -404,12 +532,61 @@ export default function PlansWidget() {
   const openCount = openPlans.length;
   const doneCount = donePlans.length;
 
+  function renderSection(section: { key: string; category: PlanCategory | null; plans: Plan[] }) {
+    const isCollapsed = section.category != null && collapsed.has(section.category.id);
+    return (
+      <SectionDroppable key={section.key} id={section.key}>
+        {section.category && (
+          <CategoryHeader
+            category={section.category}
+            count={section.plans.length}
+            collapsed={isCollapsed}
+            onToggle={() => toggleCollapsed(section.category!.id)}
+            onRename={handleRenameCategory}
+            onDelete={(c) => void handleDeleteCategory(c)}
+          />
+        )}
+        {!isCollapsed && (
+          <SortableContext items={section.plans.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+            {section.plans.map((plan) => (
+              <SortableItem
+                key={plan.id}
+                plan={plan}
+                projects={projects}
+                onRun={handleRun}
+                onMarkDone={handleMarkDone}
+                onUpdate={(id, patch) => setPlans((prev) => prev.map((p) => p.id === id ? { ...p, ...patch } : p))}
+                onDelete={handleDelete}
+              />
+            ))}
+          </SortableContext>
+        )}
+      </SectionDroppable>
+    );
+  }
+
   return (
-    <div className="plans-float" ref={panelRef}>
+    <>
+      <button
+        className={`btn plans-trigger${open ? ' active' : ''}`}
+        onClick={() => setOpen((v) => !v)}
+      >
+        [ plans{openCount > 0 ? ` · ${openCount}` : ''} ]
+      </button>
+
       {open && (
-        <div className="plans-panel" style={{ width: panelSize.width, height: panelSize.height }}>
-          <div className="plans-resize-handle" onMouseDown={handleResizeMouseDown} />
-          <div className="plans-panel-header">
+        <div
+          className="plans-panel"
+          style={{ top: panelPosition.top, left: panelPosition.left, width: panelSize.width, height: panelSize.height }}
+        >
+          <div className="plans-resize-handle--nw" onMouseDown={(e) => handleResizeMouseDown(e, 'nw')} />
+          <div className="plans-resize-handle--ne" onMouseDown={(e) => handleResizeMouseDown(e, 'ne')} />
+          <div className="plans-resize-handle--sw" onMouseDown={(e) => handleResizeMouseDown(e, 'sw')} />
+          <div className="plans-resize-handle" onMouseDown={(e) => handleResizeMouseDown(e, 'se')} />
+          <div
+            className={`plans-panel-header${panelDragging ? ' dragging' : ''}`}
+            onMouseDown={handlePanelHeaderMouseDown}
+          >
             <span className="plans-panel-title">
               Plans&nbsp;
               <span className="plans-panel-count">
@@ -417,11 +594,6 @@ export default function PlansWidget() {
               </span>
             </span>
             <span style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-              {doneCount > 0 && (
-                <button className="btn icon-btn" onClick={() => setShowDone((v) => !v)}>
-                  {showDone ? '[ hide done ]' : '[ show done ]'}
-                </button>
-              )}
               <button className="btn icon-btn" onClick={() => setOpen(false)}>[ × ]</button>
             </span>
           </div>
@@ -433,71 +605,44 @@ export default function PlansWidget() {
             />
 
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              {sections.map((section) => {
-                const isCollapsed = section.category != null && collapsed.has(section.category.id);
-                return (
-                  <SectionDroppable key={section.key} id={section.key}>
-                    {section.category && (
-                      <CategoryHeader
-                        category={section.category}
-                        count={section.plans.length}
-                        collapsed={isCollapsed}
-                        onToggle={() => toggleCollapsed(section.category!.id)}
-                        onRename={handleRenameCategory}
-                        onDelete={(c) => void handleDeleteCategory(c)}
-                      />
-                    )}
-                    {!isCollapsed && (
-                      <SortableContext items={section.plans.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-                        {section.plans.map((plan) => (
-                          <SortableItem
-                            key={plan.id}
-                            plan={plan}
-                            projects={projects}
-                            onRun={handleRun}
-                            onMarkDone={handleMarkDone}
-                            onUpdate={(id, patch) => setPlans((prev) => prev.map((p) => p.id === id ? { ...p, ...patch } : p))}
-                            onDelete={handleDelete}
-                          />
-                        ))}
-                      </SortableContext>
-                    )}
-                  </SectionDroppable>
-                );
-              })}
+              {renderSection(generalSection)}
+
+              <AddCategoryRow onAdd={(category) => setCategories((prev) => [...prev, category])} />
+
+              {categorySections.map(renderSection)}
+
+              {doneCount > 0 && (
+              <SectionDroppable id="section-done">
+                <DoneHeader
+                  count={doneCount}
+                  collapsed={doneCollapsed}
+                  onToggle={() => setDoneCollapsed((v) => !v)}
+                />
+                {!doneCollapsed && donePlans.map((plan) => (
+                  <div key={plan.id} className="plan-row plan-row--done">
+                    <input type="checkbox" className="plan-checkbox" checked={true} onChange={() => void handleRestore(plan)} />
+                    <span className="plan-handle plan-handle--disabled">⠿</span>
+                    <select
+                      className="plan-inline-select"
+                      value={plan.project_id ?? ''}
+                      title={plan.project_name ?? undefined}
+                      disabled
+                    >
+                      <option value="">—</option>
+                      {projects.filter((p) => !p.archived || p.id === plan.project_id).map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                    <input className="plan-inline-input" value={plan.text} title={plan.text || undefined} disabled readOnly onChange={() => {}} />
+                    <button className="btn icon-btn" onClick={() => void handleDelete(plan)}>[ × ]</button>
+                  </div>
+                ))}
+              </SectionDroppable>
+              )}
             </DndContext>
-
-            <AddCategoryRow onAdd={(category) => setCategories((prev) => [...prev, category])} />
-
-            {showDone && donePlans.map((plan) => (
-              <div key={plan.id} className="plan-row plan-row--done">
-                <input type="checkbox" className="plan-checkbox" checked={true} onChange={() => void handleRestore(plan)} />
-                <span className="plan-handle plan-handle--disabled">⠿</span>
-                <select
-                  className="plan-inline-select"
-                  value={plan.project_id ?? ''}
-                  title={plan.project_name ?? undefined}
-                  disabled
-                >
-                  <option value="">—</option>
-                  {projects.filter((p) => !p.archived || p.id === plan.project_id).map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-                <input className="plan-inline-input" value={plan.text} title={plan.text || undefined} disabled readOnly onChange={() => {}} />
-                <button className="btn icon-btn" onClick={() => void handleDelete(plan)}>[ × ]</button>
-              </div>
-            ))}
           </div>
         </div>
       )}
-
-      <button
-        className={`btn icon-btn plans-trigger${open ? ' active' : ''}`}
-        onClick={() => setOpen((v) => !v)}
-      >
-        [ plans{openCount > 0 ? ` · ${openCount}` : ''} ]
-      </button>
-    </div>
+    </>
   );
 }

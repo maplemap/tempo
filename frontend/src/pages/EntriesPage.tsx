@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Entry, Project } from '../lib/api';
 import { rangeForPeriod, fmtDayHeader, isoDateKey, fmtDuration } from '../lib/time';
@@ -29,7 +28,6 @@ export default function EntriesPage() {
   const [allMonthsBack, setAllMonthsBack] = useState(2);
   const [hasMore, setHasMore] = useState(false);
   const [search, setSearch] = useState('');
-  const navigate = useNavigate();
 
   async function fetchAndSet(p: Period, monthsBack: number) {
     const range = p === 'all' ? rangeForAll(monthsBack) : rangeForPeriod(p);
@@ -133,7 +131,7 @@ export default function EntriesPage() {
                   entry={e}
                   projects={projects}
                   onChange={refresh}
-                  onRestart={() => navigate('/')}
+                  onRestart={refresh}
                 />
               ))}
             </div>
