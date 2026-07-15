@@ -59,7 +59,7 @@ function PastDaySection({ entries, projects, collapsed, onToggle, onRefresh }: P
 
 export default function TimerPage() {
   const location = useLocation();
-  const { current, elapsedSec, start: startTimer, stop: stopTimer, updateStartedAt } = useTimer();
+  const { current, elapsedSec, start: startTimer, stop: stopTimer, updateStartedAt, refresh: refreshTimer } = useTimer();
   const [projects, setProjects] = useState<Project[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -89,6 +89,7 @@ export default function TimerPage() {
     setProjects(prjs);
     setEntries(ents);
     setSuggestions(descriptions);
+    await refreshTimer();
   }
 
   useEffect(() => { refresh(); }, [location.key]);
@@ -155,10 +156,29 @@ export default function TimerPage() {
   }, [current, projectId]);
 
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  const todayEntries = entries.filter((e) => isoDateKey(e.started_at) === todayKey);
-  const todayCompletedSec = todayEntries.reduce((s, e) => s + (e.duration_seconds || 0), 0);
+  const todayCompletedSec = entries
+    .filter((e) => isoDateKey(e.started_at) === todayKey)
+    .reduce((s, e) => s + (e.duration_seconds || 0), 0);
   const currentTodaySec = current && isoDateKey(current.started_at) === todayKey ? elapsedSec : 0;
   const todayTotalSec = todayCompletedSec + currentTodaySec;
+
+  const runningEntry: Entry | null = current ? {
+    id: current.id,
+    project_id: current.project_id,
+    project_name: current.project_name,
+    github_repo: current.github_repo,
+    description: current.description,
+    started_at: current.started_at,
+    ended_at: null,
+    duration_seconds: null,
+    category: current.category,
+    category_manual: current.category_manual,
+    links: [],
+  } : null;
+
+  const todayEntries = runningEntry && isoDateKey(runningEntry.started_at) === todayKey
+    ? [runningEntry, ...entries.filter((e) => isoDateKey(e.started_at) === todayKey)]
+    : entries.filter((e) => isoDateKey(e.started_at) === todayKey);
 
   const pastDayMap = new Map<string, Entry[]>();
   for (const e of entries) {
@@ -278,6 +298,8 @@ export default function TimerPage() {
               onChange={refresh}
               onRestart={refresh}
               timeOnly
+              running={runningEntry?.id === e.id}
+              runningElapsedSec={elapsedSec}
             />
           ))}
         </div>

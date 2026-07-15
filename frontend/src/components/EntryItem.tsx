@@ -13,6 +13,8 @@ interface EntryItemProps {
   onChange?: () => void;
   onRestart?: () => void;
   timeOnly?: boolean;
+  running?: boolean;
+  runningElapsedSec?: number;
 }
 
 // YYYY-MM-DD — for internal comparison and applyDateInput
@@ -47,7 +49,7 @@ function applyDateInput(yyyymmdd: string, originalIso: string): string {
 }
 
 export default function EntryItem({
-  entry, projects = [], onChange, onRestart, timeOnly = false,
+  entry, projects = [], onChange, onRestart, timeOnly = false, running = false, runningElapsedSec = 0,
 }: EntryItemProps) {
   const { start: startTimer } = useTimer();
   const [dateText, setDateText] = useState(() => toDateDisplay(entry.started_at));
@@ -193,16 +195,19 @@ export default function EntryItem({
             onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
           />
           <span className="muted">—</span>
-          <input
-            className="entry-time-input"
-            value={endText}
-            placeholder="..."
-            onChange={(e) => setEndText(e.target.value)}
-            onBlur={saveTime}
-            onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-          />
+          {running
+            ? <input className="entry-time-input" value="--:--" disabled />
+            : <input
+                className="entry-time-input"
+                value={endText}
+                placeholder="..."
+                onChange={(e) => setEndText(e.target.value)}
+                onBlur={saveTime}
+                onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+              />
+          }
         </span>
-        <span className="dur">{fmtDuration(entry.duration_seconds ?? 0)}</span>
+        <span className="dur">{fmtDuration(running ? runningElapsedSec : (entry.duration_seconds ?? 0))}</span>
         <select
           className="entry-proj-select"
           value={projectId}
@@ -235,11 +240,11 @@ export default function EntryItem({
             </span>
         }
         <span className="entry-actions">
-          <button className="btn icon-btn" onClick={restart}>[ ▶ ]</button>
-          {confirmDelete
+          {!running && <button className="btn icon-btn" onClick={restart}>[ ▶ ]</button>}
+          {!running && (confirmDelete
             ? <ConfirmInline message="delete?" onConfirm={remove} onCancel={() => setConfirmDelete(false)} />
             : <button className="btn icon-btn" onClick={() => setConfirmDelete(true)}>[ × ]</button>
-          }
+          )}
         </span>
       </div>
       {error && <div style={{ fontSize: 11, color: '#c0392b', paddingBottom: 4 }}>{error}</div>}

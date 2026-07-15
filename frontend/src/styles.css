@@ -309,6 +309,11 @@ button {
   outline: none;
 }
 
+.entry-time-input:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
 .entry-proj-select {
   max-width: 90px;
   width: max-content;

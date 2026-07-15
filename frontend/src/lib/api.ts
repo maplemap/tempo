@@ -23,6 +23,7 @@ export interface Entry {
 export interface TimerEntry {
   id: number; project_id: number | null; project_name: string | null;
   github_repo: string | null; description: string | null; started_at: string;
+  category: Category; category_manual: 0 | 1;
 }
 export interface Project {
   id: number; name: string; archived: 0 | 1;
