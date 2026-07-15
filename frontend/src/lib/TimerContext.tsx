@@ -61,6 +61,7 @@ interface TimerContextValue {
   elapsedSec: number;
   start: (params: { projectId?: number | null; description?: string }) => Promise<TimerEntry>;
   stop: () => Promise<void>;
+  updateStartedAt: (iso: string) => Promise<void>;
   refresh: () => Promise<void>;
 }
 
@@ -141,8 +142,15 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function updateStartedAt(iso: string): Promise<void> {
+    if (!current) return;
+    await api.entries.update(current.id, { started_at: iso });
+    setCurrent({ ...current, started_at: iso });
+    startedAtRef.current = new Date(iso).getTime();
+  }
+
   return (
-    <TimerContext.Provider value={{ current, elapsedSec, start, stop, refresh }}>
+    <TimerContext.Provider value={{ current, elapsedSec, start, stop, updateStartedAt, refresh }}>
       {children}
     </TimerContext.Provider>
   );

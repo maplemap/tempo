@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Entry, Project } from '../lib/api';
-import { fmtClock, fmtDate, fmtDuration, fmtDayHeader, isoDateKey, rangeLastNDays } from '../lib/time';
+import { fmtClock, fmtDate, fmtDuration, fmtDayHeader, isoDateKey, rangeLastNDays, normalizeTimeInput, toTimeInput, applyTimeInput } from '../lib/time';
 import { useMidnightRefresh } from '../lib/hooks';
 import { useTimer } from '../lib/TimerContext';
 import EntryItem from '../components/EntryItem';
@@ -59,7 +59,7 @@ function PastDaySection({ entries, projects, collapsed, onToggle, onRefresh }: P
 
 export default function TimerPage() {
   const location = useLocation();
-  const { current, elapsedSec, start: startTimer, stop: stopTimer } = useTimer();
+  const { current, elapsedSec, start: startTimer, stop: stopTimer, updateStartedAt } = useTimer();
   const [projects, setProjects] = useState<Project[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -67,6 +67,10 @@ export default function TimerPage() {
   const [taskText, setTaskText] = useState('');
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [today, setToday] = useState(() => new Date());
+  const [startDraft, setStartDraft] = useState('');
+  const [startError, setStartError] = useState<string | null>(null);
+  const skipBlurSave = useRef(false);
+  const startInputFocused = useRef(false);
 
   function toggleDay(key: string) {
     setExpandedDays((prev) => {
@@ -93,6 +97,11 @@ export default function TimerPage() {
     if (current) setProjectId(String(current.project_id ?? ''));
   }, [current]);
 
+  useEffect(() => {
+    if (!current || startInputFocused.current) return;
+    setStartDraft(toTimeInput(current.started_at));
+  }, [current]);
+
   useMidnightRefresh(() => {
     setToday(new Date());
     void refresh();
@@ -109,6 +118,27 @@ export default function TimerPage() {
     await stopTimer();
     setTaskText('');
     await refresh();
+  }
+
+  async function saveStartTime() {
+    if (!current) return;
+    const norm = normalizeTimeInput(startDraft);
+    if (!norm) {
+      setStartError('! invalid time');
+      return;
+    }
+    if (norm !== startDraft) setStartDraft(norm);
+    const newStartedAt = applyTimeInput(norm, current.started_at);
+    if (new Date(newStartedAt).getTime() > Date.now()) {
+      setStartError('! start time cannot be in the future');
+      return;
+    }
+    try {
+      await updateStartedAt(newStartedAt);
+      setStartError(null);
+    } catch (e) {
+      setStartError(`! ${(e as Error).message}`);
+    }
   }
 
   useEffect(() => {
@@ -151,6 +181,32 @@ export default function TimerPage() {
           <div className="meta">{fmtDate(today)}</div>
         </div>
         <hr className="rule" />
+
+        <div className="running-started" style={{ visibility: current ? 'visible' : 'hidden' }}>
+          started{' '}
+          <input
+            className="start-inline-input"
+            value={startDraft}
+            size={6}
+            onChange={(e) => { setStartDraft(e.target.value); setStartError(null); }}
+            onFocus={() => { startInputFocused.current = true; }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); void saveStartTime(); }
+              if (e.key === 'Escape') {
+                skipBlurSave.current = true;
+                setStartDraft(toTimeInput(current?.started_at));
+                setStartError(null);
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+            onBlur={() => {
+              startInputFocused.current = false;
+              if (skipBlurSave.current) { skipBlurSave.current = false; return; }
+              void saveStartTime();
+            }}
+          />
+          {startError && <div className="start-error">{startError}</div>}
+        </div>
 
         <div className="timer-display">
           <span className="running-dot-slot">{current && <span className="running-dot" />}</span>

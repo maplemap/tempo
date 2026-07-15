@@ -94,6 +94,19 @@ export function normalizeTimeInput(raw: string): string | null {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+export function toTimeInput(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+export function applyTimeInput(hhmm: string, originalIso: string): string {
+  const d = new Date(originalIso);
+  const [h, m] = hhmm.split(':').map(Number);
+  d.setHours(h, m, 0, 0);
+  return d.toISOString();
+}
+
 export function rangeLastNDays(n: number): { from: string; to: string } {
   const to = new Date();
   const from = new Date();

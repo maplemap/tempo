@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api';
-import { fmtDuration, normalizeTimeInput } from '../lib/time';
+import { fmtDuration, normalizeTimeInput, toTimeInput, applyTimeInput } from '../lib/time';
 import { useTimer } from '../lib/TimerContext';
 import ConfirmInline from './ConfirmInline';
 import CategoryBadge from './CategoryBadge';
@@ -15,12 +15,6 @@ interface EntryItemProps {
   timeOnly?: boolean;
 }
 
-function toTimeInput(iso: string | null | undefined): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-
 // YYYY-MM-DD — for internal comparison and applyDateInput
 function toDateInput(iso: string | null | undefined): string {
   if (!iso) return '';
@@ -33,13 +27,6 @@ function toDateDisplay(iso: string | null | undefined): string {
   if (!iso) return '';
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
-}
-
-function applyTimeInput(hhmm: string, originalIso: string): string {
-  const d = new Date(originalIso);
-  const [h, m] = hhmm.split(':').map(Number);
-  d.setHours(h, m, 0, 0);
-  return d.toISOString();
 }
 
 // Strict DD.MM.YYYY — partial input like "3.06.2026" returns null and is preserved in the field

@@ -158,7 +158,7 @@ button {
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
-  margin: 24px 0;
+  margin: 8px 0 24px 0;
 }
 
 .running-dot-slot {
@@ -190,6 +190,46 @@ button {
   align-self: center;
   text-align: center;
   font-size: 25px;
+}
+
+.running-started {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 11px;
+  opacity: 0.5;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.running-started:hover,
+.running-started:focus-within {
+  opacity: 1;
+}
+
+.start-inline-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  color: inherit;
+  font: inherit;
+  font-size: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+  text-align: center;
+  padding: 0;
+  width: 7ch;
+}
+
+.start-inline-input:hover,
+.start-inline-input:focus {
+  border-bottom-color: currentColor;
+  outline: none;
+}
+
+.start-error {
+  font-size: 11px;
+  opacity: 0.7;
+  margin-top: 4px;
 }
 
 .timer-form {
