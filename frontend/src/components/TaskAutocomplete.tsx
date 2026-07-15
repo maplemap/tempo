@@ -67,11 +67,12 @@ export default function TaskAutocomplete({ value, onChange, onEnter, description
         onChange={handleChange}
         onKeyDown={handleKeyDown}
       />
-      {tail && (
-        <span className="muted" style={{ fontSize: 11, display: 'block', marginTop: 2 }}>
-          press Tab to complete
-        </span>
-      )}
+      <span
+        className="muted"
+        style={{ fontSize: 11, display: 'block', marginTop: 2, visibility: tail ? 'visible' : 'hidden' }}
+      >
+        press Tab to complete
+      </span>
     </div>
   );
 }
