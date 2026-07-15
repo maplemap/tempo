@@ -1,39 +1,35 @@
 import { useEffect, useState } from 'react';
-import type { Entry } from '../lib/api';
 
 interface Props {
   value: string;
   onChange: (v: string) => void;
   onEnter: (finalValue: string) => void;
-  entries: Entry[];
+  descriptions: string[];
 }
 
-function buildSuggestion(text: string, entries: Entry[]): string {
+function buildSuggestion(text: string, descriptions: string[]): string {
   if (!text) return '';
-  const seen = new Set<string>();
-  for (const e of entries) {
-    const desc = e.description;
-    if (!desc || seen.has(desc)) continue;
-    seen.add(desc);
-    if (desc.toLowerCase().startsWith(text.toLowerCase()) && desc.length > text.length) {
+  const lower = text.toLowerCase();
+  for (const desc of descriptions) {
+    if (desc.toLowerCase().startsWith(lower) && desc.length > text.length) {
       return desc;
     }
   }
   return '';
 }
 
-export default function TaskAutocomplete({ value, onChange, onEnter, entries }: Props) {
+export default function TaskAutocomplete({ value, onChange, onEnter, descriptions }: Props) {
   const [suggestion, setSuggestion] = useState('');
 
-  // Recompute suggestion whenever value or entries change
+  // Recompute suggestion whenever value or descriptions change
   useEffect(() => {
-    setSuggestion(buildSuggestion(value, entries));
-  }, [value, entries]);
+    setSuggestion(buildSuggestion(value, descriptions));
+  }, [value, descriptions]);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const v = e.target.value;
     onChange(v);
-    setSuggestion(buildSuggestion(v, entries));
+    setSuggestion(buildSuggestion(v, descriptions));
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {

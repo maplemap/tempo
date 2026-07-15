@@ -62,6 +62,7 @@ export default function TimerPage() {
   const { current, elapsedSec, start: startTimer, stop: stopTimer } = useTimer();
   const [projects, setProjects] = useState<Project[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [projectId, setProjectId] = useState<string>(localStorage.getItem(LAST_PROJECT_KEY) || '');
   const [taskText, setTaskText] = useState('');
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
@@ -76,12 +77,14 @@ export default function TimerPage() {
   }
 
   async function refresh() {
-    const [{ projects: prjs }, { entries: ents }] = await Promise.all([
+    const [{ projects: prjs }, { entries: ents }, { descriptions }] = await Promise.all([
       api.projects.list(),
       api.entries.list(rangeLastNDays(8)),
+      api.entries.suggestions(),
     ]);
     setProjects(prjs);
     setEntries(ents);
+    setSuggestions(descriptions);
   }
 
   useEffect(() => { refresh(); }, [location.key]);
@@ -192,7 +195,7 @@ export default function TimerPage() {
               value={taskText}
               onChange={setTaskText}
               onEnter={(finalText) => void start(finalText)}
-              entries={entries}
+              descriptions={suggestions}
             />
           </div>
         </div>
