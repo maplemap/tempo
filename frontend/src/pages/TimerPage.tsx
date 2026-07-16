@@ -94,6 +94,18 @@ export default function TimerPage() {
 
   useEffect(() => { refresh(); }, [location.key]);
 
+  // When the running entry switches to a different task (e.g. Start from Plans),
+  // the previous entry was just closed on the backend — refetch so it appears in
+  // the day list (open entries aren't returned by /api/entries).
+  const prevCurrentId = useRef<number | null>(null);
+  useEffect(() => {
+    const id = current?.id ?? null;
+    if (id !== null && prevCurrentId.current !== null && id !== prevCurrentId.current) {
+      void refresh();
+    }
+    prevCurrentId.current = id;
+  }, [current?.id]);
+
   useEffect(() => {
     if (current) setProjectId(String(current.project_id ?? ''));
   }, [current]);

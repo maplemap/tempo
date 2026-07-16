@@ -75,11 +75,13 @@ export default async function timerRoutes(fastify: FastifyInstance): Promise<voi
       const { projectId = null, description = '' } = req.body;
       const category = categorizeEntry(description);
 
-      closeAllOpen.run({ endedAt: nowIso() });
+      // Single timestamp so the previous entry's end matches the new one's start exactly.
+      const now = nowIso();
+      closeAllOpen.run({ endedAt: now });
       const result = insertEntry.run({
         projectId: projectId ?? null,
         description,
-        startedAt: nowIso(),
+        startedAt: now,
         category,
       });
       const row = db.prepare<[number | bigint], TimerRow>(`
