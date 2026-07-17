@@ -201,6 +201,17 @@ export default function TimerPage() {
   }
   const pastDayKeys = [...pastDayMap.keys()].sort((a, b) => b.localeCompare(a));
 
+  // The most recent past day (yesterday) starts expanded; the user can still
+  // collapse it. Tracked by key so it re-applies to the newest day after midnight.
+  const autoExpandedKey = useRef<string | null>(null);
+  const newestPastKey = pastDayKeys[0] ?? null;
+  useEffect(() => {
+    if (newestPastKey && autoExpandedKey.current !== newestPastKey) {
+      autoExpandedKey.current = newestPastKey;
+      setExpandedDays((prev) => new Set(prev).add(newestPastKey));
+    }
+  }, [newestPastKey]);
+
   const runningInfoText = current
     ? [current.project_name, current.description].filter(Boolean).join(' · ')
     : ' ';
