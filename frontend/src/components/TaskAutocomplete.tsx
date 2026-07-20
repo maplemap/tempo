@@ -7,15 +7,33 @@ interface Props {
   descriptions: string[];
 }
 
+// Reverse-i-search style: match the typed text anywhere in a description
+// (substring), returning the first — best — full match. Skips a match that is
+// identical to what's typed (nothing to complete).
 function buildSuggestion(text: string, descriptions: string[]): string {
   if (!text) return '';
   const lower = text.toLowerCase();
   for (const desc of descriptions) {
-    if (desc.toLowerCase().startsWith(lower) && desc.length > text.length) {
+    const dl = desc.toLowerCase();
+    if (dl !== lower && dl.includes(lower)) {
       return desc;
     }
   }
   return '';
+}
+
+// Split a suggestion around the matched substring so the match can be
+// emphasized (bck-i-search shows the whole line with the search term inside it).
+function emphasize(suggestion: string, text: string) {
+  const idx = suggestion.toLowerCase().indexOf(text.toLowerCase());
+  if (idx < 0) return <>{suggestion}</>;
+  return (
+    <>
+      {suggestion.slice(0, idx)}
+      <span className="task-hint-match">{suggestion.slice(idx, idx + text.length)}</span>
+      {suggestion.slice(idx + text.length)}
+    </>
+  );
 }
 
 export default function TaskAutocomplete({ value, onChange, onEnter, descriptions }: Props) {
@@ -50,7 +68,11 @@ export default function TaskAutocomplete({ value, onChange, onEnter, description
     }
   }
 
-  const tail = suggestion ? suggestion.slice(value.length) : '';
+  // Inline ghost tail only works when the suggestion starts with the typed text
+  // (the completion is appended after the cursor). For a substring match the
+  // matched part sits mid-string, so we fall back to a full-line hint below.
+  const isPrefix = !!suggestion && suggestion.toLowerCase().startsWith(value.toLowerCase());
+  const tail = isPrefix ? suggestion.slice(value.length) : '';
 
   return (
     <div style={{ position: 'relative' }}>
@@ -67,12 +89,19 @@ export default function TaskAutocomplete({ value, onChange, onEnter, description
         onChange={handleChange}
         onKeyDown={handleKeyDown}
       />
-      <span
-        className="muted"
-        style={{ fontSize: 11, display: 'block', marginTop: 2, visibility: tail ? 'visible' : 'hidden' }}
-      >
-        press Tab to complete
-      </span>
+      {suggestion && !isPrefix ? (
+        <span className="muted task-hint">
+          {emphasize(suggestion, value)}
+          <span className="task-hint-key"> · Tab</span>
+        </span>
+      ) : (
+        <span
+          className="muted"
+          style={{ fontSize: 11, display: 'block', marginTop: 2, visibility: tail ? 'visible' : 'hidden' }}
+        >
+          press Tab to complete
+        </span>
+      )}
     </div>
   );
 }

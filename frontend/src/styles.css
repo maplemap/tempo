@@ -122,6 +122,24 @@ button {
   color: var(--muted);
 }
 
+.task-hint {
+  font-size: 11px;
+  display: block;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-hint-match {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.task-hint-key {
+  color: var(--muted);
+}
+
 .btn {
   display: inline-block;
   border: 1px solid var(--hairline);
