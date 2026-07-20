@@ -117,6 +117,22 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     return () => { clearInterval(id); clearFavicon(); };
   }, [current]);
 
+  // Hidden tabs get their setInterval throttled or frozen by the browser, so the
+  // title/favicon minutes stall while the tab is in the background. Recompute the
+  // moment the tab becomes visible again so the count is correct as soon as it's
+  // looked at, instead of lagging until the next (throttled) tick.
+  useEffect(() => {
+    if (!current) return;
+    function onVisible() {
+      if (document.visibilityState !== 'visible') return;
+      setTick((t) => t + 1); // forces elapsedSec recompute → title effect re-runs
+      const elapsed = startedAtRef.current ? (Date.now() - startedAtRef.current) / 1000 : 0;
+      drawFavicon(Math.floor(elapsed / 60));
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [current]);
+
   useEffect(() => {
     return () => {
       document.title = 'Tempo';
