@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import type { Entry, Project } from '../lib/api';
-import { rangeForPeriod, fmtDayHeader, isoDateKey, fmtDuration } from '../lib/time';
+import { rangeForPeriod, rangeForAll, fmtDayHeader, isoDateKey, fmtDuration } from '../lib/time';
 import { useMidnightRefresh } from '../lib/hooks';
 import EntryItem from '../components/EntryItem';
 
@@ -12,14 +12,6 @@ const periods: Array<{ key: Period; label: string }> = [
   { key: 'month', label: 'Month' },
   { key: 'all',   label: 'All' }
 ];
-
-function rangeForAll(monthsBack: number): { from: string; to: string } {
-  const end = new Date();
-  const start = new Date(end);
-  start.setMonth(start.getMonth() - monthsBack);
-  start.setHours(0, 0, 0, 0);
-  return { from: start.toISOString(), to: end.toISOString() };
-}
 
 export default function EntriesPage() {
   const [period, setPeriod] = useState<Period>('week');

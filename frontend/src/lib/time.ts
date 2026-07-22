@@ -34,6 +34,19 @@ export function fmtDayHeader(iso: string): string {
   return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
 }
 
+// Weekday + day-of-month built manually (not via Intl's combined weekday+day
+// skeleton, whose field order varies by locale) so it reads the same
+// everywhere; the time portion still uses toLocaleTimeString for AM/PM.
+export function fmtDayTimeRange(startedAt: string, endedAt: string | null): string {
+  const start = new Date(startedAt);
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const startTime = start.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  const endTime = endedAt
+    ? new Date(endedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+    : '--:--';
+  return `${days[start.getDay()]} ${start.getDate()}, ${startTime} – ${endTime}`;
+}
+
 export function isoDateKey(iso: string): string {
   const d = new Date(iso);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -105,6 +118,14 @@ export function applyTimeInput(hhmm: string, originalIso: string): string {
   const [h, m] = hhmm.split(':').map(Number);
   d.setHours(h, m, 0, 0);
   return d.toISOString();
+}
+
+export function rangeForAll(monthsBack: number): { from: string; to: string } {
+  const end = new Date();
+  const start = new Date(end);
+  start.setMonth(start.getMonth() - monthsBack);
+  start.setHours(0, 0, 0, 0);
+  return { from: start.toISOString(), to: end.toISOString() };
 }
 
 export function rangeLastNDays(n: number): { from: string; to: string } {

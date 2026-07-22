@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import type { ByCategoryStats } from '../lib/api';
-import { rangeForPeriod, fmtDuration } from '../lib/time';
+import { rangeForPeriod, fmtDuration, fmtDayTimeRange } from '../lib/time';
 import { useMidnightRefresh } from '../lib/hooks';
 import AsciiBar from '../components/AsciiBar';
 import { renderDescription } from '../lib/renderDescription';
 
-type Period = 'day' | 'week' | 'month';
+type Period = 'week' | 'month' | 'all';
 
 interface StatsData {
   range: { from: string; to: string };
@@ -18,9 +18,9 @@ interface StatsData {
 }
 
 const periods: Array<{ key: Period; label: string }> = [
-  { key: 'day',   label: 'Day' },
   { key: 'week',  label: 'Week' },
-  { key: 'month', label: 'Month' }
+  { key: 'month', label: 'Month' },
+  { key: 'all',   label: 'All' }
 ];
 
 export default function DashboardPage() {
@@ -29,20 +29,26 @@ export default function DashboardPage() {
   const [byCategory, setByCategory] = useState<ByCategoryStats | null>(null);
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState('');
+
+  async function fetchAndSet(p: Period) {
+    const range = p === 'all' ? { from: new Date(0).toISOString(), to: new Date().toISOString() } : rangeForPeriod(p);
+    const [statsData, categoryData] = await Promise.all([
+      api.stats.get(range),
+      api.stats.byCategory(range)
+    ]);
+    setStats(statsData as StatsData);
+    setByCategory(categoryData);
+  }
 
   useEffect(() => {
-    const range = rangeForPeriod(period);
-    api.stats.get(range).then((data) => setStats(data as StatsData));
-    api.stats.byCategory(range).then((data) => setByCategory(data));
+    setSearch('');
     setExpandedCats(new Set());
     setExpandedGroups(new Set());
+    fetchAndSet(period);
   }, [period]);
 
-  useMidnightRefresh(() => {
-    const range = rangeForPeriod(period);
-    api.stats.get(range).then((data) => setStats(data as StatsData));
-    api.stats.byCategory(range).then((data) => setByCategory(data));
-  });
+  useMidnightRefresh(() => fetchAndSet(period));
 
   function toggleCat(c: string) {
     setExpandedCats((prev) => {
@@ -63,6 +69,18 @@ export default function DashboardPage() {
   if (!stats) return null;
 
   const max = Math.max(1, ...stats.byProject.map((r) => r.total || 0));
+
+  const q = search.trim().toLowerCase();
+  const filteredCategories = byCategory
+    ? (q
+        ? byCategory.categories
+            .map((cat) => {
+              const groups = cat.groups.filter((g) => (g.description ?? '').toLowerCase().includes(q));
+              return { ...cat, groups, total: groups.reduce((s, g) => s + g.total, 0) };
+            })
+            .filter((cat) => cat.groups.length > 0)
+        : byCategory.categories)
+    : [];
 
   return (
     <>
@@ -104,10 +122,18 @@ export default function DashboardPage() {
         <>
           <hr className="rule" />
           <div className="section-title">By category</div>
-          {byCategory.categories.map((cat) => {
+          <input
+            className="input"
+            placeholder="search tasks..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ marginBottom: 8, width: '100%', boxSizing: 'border-box' }}
+          />
+          {filteredCategories.length === 0 && <div className="muted">no matching tasks</div>}
+          {filteredCategories.map((cat) => {
             const ratio = byCategory.total > 0 ? cat.total / byCategory.total : 0;
             const pct = Math.round(ratio * 100);
-            const open = expandedCats.has(cat.category);
+            const open = q ? true : expandedCats.has(cat.category);
             return (
               <div key={cat.category}>
                 <div
@@ -138,11 +164,7 @@ export default function DashboardPage() {
                       {groupOpen && g.entries.map((e) => (
                         <div key={e.id} className="dash-row">
                           <span className="muted" style={{ paddingLeft: 32, fontSize: 12 }}>
-                            {new Date(e.started_at).toLocaleString(undefined, {
-                              weekday: 'short',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
+                            {fmtDayTimeRange(e.started_at, e.ended_at)}
                           </span>
                           <span>{fmtDuration(e.duration_seconds)}</span>
                           <span></span>
