@@ -8,18 +8,16 @@ interface Props {
 }
 
 // Reverse-i-search style: match the typed text anywhere in a description
-// (substring), returning the first — best — full match. Skips a match that is
-// identical to what's typed (nothing to complete).
-function buildSuggestion(text: string, descriptions: string[]): string {
-  if (!text) return '';
+// (substring). Returns all matches, most-recent-first (same order as
+// `descriptions`). Skips a match that is identical to what's typed (nothing
+// to complete).
+function buildMatches(text: string, descriptions: string[]): string[] {
+  if (!text) return [];
   const lower = text.toLowerCase();
-  for (const desc of descriptions) {
+  return descriptions.filter((desc) => {
     const dl = desc.toLowerCase();
-    if (dl !== lower && dl.includes(lower)) {
-      return desc;
-    }
-  }
-  return '';
+    return dl !== lower && dl.includes(lower);
+  });
 }
 
 // Split a suggestion around the matched substring so the match can be
@@ -37,32 +35,43 @@ function emphasize(suggestion: string, text: string) {
 }
 
 export default function TaskAutocomplete({ value, onChange, onEnter, descriptions }: Props) {
-  const [suggestion, setSuggestion] = useState('');
+  const [matches, setMatches] = useState<string[]>([]);
+  const [index, setIndex] = useState(0);
+  const suggestion = matches[index] ?? '';
 
-  // Recompute suggestion whenever value or descriptions change
+  // Recompute matches whenever value or descriptions change; always reset
+  // back to the top (most recent) match.
   useEffect(() => {
-    setSuggestion(buildSuggestion(value, descriptions));
+    setMatches(buildMatches(value, descriptions));
+    setIndex(0);
   }, [value, descriptions]);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const v = e.target.value;
     onChange(v);
-    setSuggestion(buildSuggestion(v, descriptions));
+    setMatches(buildMatches(v, descriptions));
+    setIndex(0);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Tab' && suggestion) {
       e.preventDefault();
       onChange(suggestion);
-      setSuggestion('');
+      setMatches([]);
+    } else if (e.key === 'ArrowDown' && matches.length > 1) {
+      e.preventDefault();
+      setIndex((i) => (i + 1) % matches.length);
+    } else if (e.key === 'ArrowUp' && matches.length > 1) {
+      e.preventDefault();
+      setIndex((i) => (i - 1 + matches.length) % matches.length);
     } else if (e.key === 'Escape') {
-      setSuggestion('');
+      setMatches([]);
     } else if (e.key === 'Enter') {
       // Capture final before onChange: parent state update is async, onEnter reads this value directly
       const final = suggestion || value;
       if (suggestion) {
         onChange(suggestion);
-        setSuggestion('');
+        setMatches([]);
       }
       onEnter(final);
     }
@@ -73,6 +82,7 @@ export default function TaskAutocomplete({ value, onChange, onEnter, description
   // matched part sits mid-string, so we fall back to a full-line hint below.
   const isPrefix = !!suggestion && suggestion.toLowerCase().startsWith(value.toLowerCase());
   const tail = isPrefix ? suggestion.slice(value.length) : '';
+  const counterHint = matches.length > 1 ? ` · ${index + 1}/${matches.length} · ↑↓` : '';
 
   return (
     <div style={{ position: 'relative' }}>
@@ -92,14 +102,14 @@ export default function TaskAutocomplete({ value, onChange, onEnter, description
       {suggestion && !isPrefix ? (
         <span className="muted task-hint">
           {emphasize(suggestion, value)}
-          <span className="task-hint-key"> · Tab</span>
+          <span className="task-hint-key">{counterHint} · Tab</span>
         </span>
       ) : (
         <span
           className="muted"
           style={{ fontSize: 11, display: 'block', marginTop: 2, visibility: tail ? 'visible' : 'hidden' }}
         >
-          press Tab to complete
+          press Tab to complete{counterHint}
         </span>
       )}
     </div>
