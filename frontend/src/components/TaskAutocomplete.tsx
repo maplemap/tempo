@@ -38,6 +38,10 @@ export default function TaskAutocomplete({ value, onChange, onEnter, description
   const [matches, setMatches] = useState<string[]>([]);
   const [index, setIndex] = useState(0);
   const suggestion = matches[index] ?? '';
+  // Only a prefix match is a safe auto-accept on Enter: it strictly extends what
+  // was typed. A substring match found elsewhere in the string can be a wholly
+  // different past entry, so Enter must not silently swap it in — Tab does that.
+  const isPrefix = !!suggestion && suggestion.toLowerCase().startsWith(value.toLowerCase());
 
   // Recompute matches whenever value or descriptions change; always reset
   // back to the top (most recent) match.
@@ -68,8 +72,8 @@ export default function TaskAutocomplete({ value, onChange, onEnter, description
       setMatches([]);
     } else if (e.key === 'Enter') {
       // Capture final before onChange: parent state update is async, onEnter reads this value directly
-      const final = suggestion || value;
-      if (suggestion) {
+      const final = isPrefix ? suggestion : value;
+      if (isPrefix) {
         onChange(suggestion);
         setMatches([]);
       }
@@ -80,7 +84,6 @@ export default function TaskAutocomplete({ value, onChange, onEnter, description
   // Inline ghost tail only works when the suggestion starts with the typed text
   // (the completion is appended after the cursor). For a substring match the
   // matched part sits mid-string, so we fall back to a full-line hint below.
-  const isPrefix = !!suggestion && suggestion.toLowerCase().startsWith(value.toLowerCase());
   const tail = isPrefix ? suggestion.slice(value.length) : '';
   const counterHint = matches.length > 1 ? ` · ${index + 1}/${matches.length} · ↑↓` : '';
 
